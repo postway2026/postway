@@ -9,9 +9,16 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   const [lowStock, setLowStock] = useState([]);
 
-  useEffect(() => {
+  function loadDashboard() {
     api.dashboard().then(setData).catch(() => {});
     api.lowStock().then(setLowStock).catch(() => {});
+  }
+
+  useEffect(() => {
+    loadDashboard();
+    const onFocus = () => loadDashboard();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, []);
 
   if (!data) return <div>Yuklanmoqda...</div>;

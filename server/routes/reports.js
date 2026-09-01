@@ -9,30 +9,39 @@ router.get('/dashboard', authRequired, (req, res) => {
   const today = new Date().toISOString().slice(0, 10);
   const monthStart = today.slice(0, 7) + '-01';
 
-  const todaySalesArr = data.sales.filter((s) => s.created_at.slice(0, 10) === today);
-  const monthSalesArr = data.sales.filter((s) => s.created_at.slice(0, 10) >= monthStart);
+  const currentSales = Array.isArray(data.sales) ? data.sales : [];
+  const currentSaleItems = Array.isArray(data.sale_items) ? data.sale_items : [];
+  const currentSaleIds = new Set(currentSales.map((s) => Number(s.id)));
 
-  const totalDebtRaw = data.sales.reduce((sum, s) => sum + s.debt_amount, 0);
-  const totalPaidDebt = data.debt_payments.reduce((sum, p) => sum + p.amount, 0);
+  const todaySalesArr = currentSales.filter((s) => s.created_at.slice(0, 10) === today);
+  const monthSalesArr = currentSales.filter((s) => s.created_at.slice(0, 10) >= monthStart);
 
-  const lowStockCount = data.products.filter((p) => p.quantity <= p.min_quantity).length;
+  const totalDebtRaw = currentSales.reduce((sum, s) => sum + Number(s.debt_amount || 0), 0);
+  const totalPaidDebt = (data.debt_payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
+  const lowStockCount = (data.products || []).filter((p) => Number(p.quantity || 0) <= Number(p.min_quantity || 0)).length;
+
+  const validSaleItems = currentSaleItems.filter((it) => currentSaleIds.has(Number(it.sale_id)));
   const productAgg = {};
-  for (const it of data.sale_items) {
-    if (!productAgg[it.product_id]) productAgg[it.product_id] = { product_name: it.product_name, total_qty: 0, total_sum: 0 };
-    productAgg[it.product_id].total_qty += it.quantity;
-    productAgg[it.product_id].total_sum += it.total_price;
+  for (const it of validSaleItems) {
+    const productId = Number(it.product_id);
+    const quantity = Number(it.quantity || 0);
+    const totalPrice = Number(it.total_price || 0);
+    if (!productAgg[productId]) productAgg[productId] = { product_name: it.product_name, total_qty: 0, total_sum: 0 };
+    productAgg[productId].total_qty += quantity;
+    productAgg[productId].total_sum += totalPrice;
   }
+
   const topProducts = Object.values(productAgg)
     .sort((a, b) => b.total_qty - a.total_qty)
     .slice(0, 5);
 
   res.json({
-    todaySales: { total: todaySalesArr.reduce((s, x) => s + x.total_amount, 0), count: todaySalesArr.length },
-    monthSales: { total: monthSalesArr.reduce((s, x) => s + x.total_amount, 0), count: monthSalesArr.length },
+    todaySales: { total: todaySalesArr.reduce((s, x) => s + Number(x.total_amount || 0), 0), count: todaySalesArr.length },
+    monthSales: { total: monthSalesArr.reduce((s, x) => s + Number(x.total_amount || 0), 0), count: monthSalesArr.length },
     totalDebt: totalDebtRaw - totalPaidDebt,
     lowStockCount,
-    productCount: data.products.length,
+    productCount: (data.products || []).length,
     topProducts,
   });
 });
