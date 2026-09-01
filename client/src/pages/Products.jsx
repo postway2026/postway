@@ -2,7 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 
-const empty = { name: '', brand: '', category: '', part_type: 'original', purchase_price: 0, sale_price: 0, quantity: 0, min_quantity: 2, car_models: '' };
+const empty = { name: '', brand: '', category: '', part_type: 'original', costPrice: 0, purchase_price: 0, sale_price: 0, quantity: 0, min_quantity: 2, car_models: '' };
+
+function normalizeProduct(p = {}) {
+  const costPrice = Number(p.costPrice ?? p.purchase_price ?? 0) || 0;
+  return { ...p, costPrice, purchase_price: costPrice };
+}
 
 function money(n) {
   return Number(n || 0).toLocaleString('uz-UZ') + " so'm";
@@ -14,11 +19,12 @@ export default function Products() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(empty);
   const [editingId, setEditingId] = useState(null);
+  const [showCostPrices, setShowCostPrices] = useState(false);
   const { user } = useAuth();
   const canEdit = user.role === 'admin' || user.role === 'omborchi';
 
   function load(s) {
-    api.listProducts(s).then(setProducts).catch(() => {});
+    api.listProducts(s).then((rows) => setProducts(rows.map(normalizeProduct))).catch(() => {});
   }
 
   useEffect(() => { load(); }, []);
@@ -30,17 +36,26 @@ export default function Products() {
   }
 
   function openEdit(p) {
-    setForm(p);
+    setForm(normalizeProduct(p));
     setEditingId(p.id);
     setModalOpen(true);
   }
 
   async function handleSave(e) {
     e.preventDefault();
+    const payload = {
+      ...form,
+      costPrice: Number(form.costPrice ?? form.purchase_price ?? 0) || 0,
+      purchase_price: Number(form.costPrice ?? form.purchase_price ?? 0) || 0,
+      sale_price: Number(form.sale_price || 0),
+      quantity: Number(form.quantity || 0),
+      min_quantity: Number(form.min_quantity ?? 2),
+    };
+
     if (editingId) {
-      await api.updateProduct(editingId, form);
+      await api.updateProduct(editingId, payload);
     } else {
-      await api.createProduct(form);
+      await api.createProduct(payload);
     }
     setModalOpen(false);
     load(search);
@@ -59,19 +74,25 @@ export default function Products() {
         {canEdit && <button className="btn" onClick={openNew}>+ Yangi mahsulot</button>}
       </div>
 
-      <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card" style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
         <input
           placeholder="Qidirish: nomi, brend, mashina modeli..."
           value={search}
           onChange={(e) => { setSearch(e.target.value); load(e.target.value); }}
+          style={{ flex: 1 }}
         />
+        {canEdit && (
+          <button type="button" className="btn secondary" onClick={() => setShowCostPrices((v) => !v)}>
+            {showCostPrices ? '🙈' : '👁️'} {showCostPrices ? 'Yashirish' : 'Ko\'rsatish'}
+          </button>
+        )}
       </div>
 
       <div className="card">
         <table>
           <thead>
             <tr>
-              <th>Nomi</th><th>Brend</th><th>Turi</th><th>Narx</th><th>Qoldiq</th>{canEdit && <th></th>}
+              <th>Nomi</th><th>Brend</th><th>Turi</th><th>Tan narx</th><th>Narx</th><th>Qoldiq</th>{canEdit && <th></th>}
             </tr>
           </thead>
           <tbody>
@@ -84,6 +105,7 @@ export default function Products() {
                     {p.part_type === 'original' ? 'Original' : 'Ishlatilgan'}
                   </span>
                 </td>
+                <td>{showCostPrices ? money(p.costPrice ?? p.purchase_price ?? 0) : '••••••'}</td>
                 <td>{money(p.sale_price)}</td>
                 <td>
                   <span className={`badge ${p.quantity <= p.min_quantity ? 'red' : 'green'}`}>{p.quantity} dona</span>
@@ -96,7 +118,7 @@ export default function Products() {
                 )}
               </tr>
             ))}
-            {products.length === 0 && <tr><td colSpan={6} style={{ color: 'var(--text-dim)' }}>Mahsulot topilmadi</td></tr>}
+            {products.length === 0 && <tr><td colSpan={canEdit ? 7 : 6} style={{ color: 'var(--text-dim)' }}>Mahsulot topilmadi</td></tr>}
           </tbody>
         </table>
       </div>
@@ -127,7 +149,7 @@ export default function Products() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div className="form-row">
                 <label>Tan narx</label>
-                <input type="number" value={form.purchase_price} onChange={(e) => setForm({ ...form, purchase_price: +e.target.value })} />
+                <input type="number" value={form.costPrice ?? form.purchase_price ?? 0} onChange={(e) => setForm({ ...form, costPrice: +e.target.value, purchase_price: +e.target.value })} />
               </div>
               <div className="form-row">
                 <label>Sotish narxi *</label>
