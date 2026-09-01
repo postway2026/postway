@@ -61,7 +61,16 @@ router.post('/:id/pay', authRequired, (req, res) => {
 
 router.delete('/:id', authRequired, roleRequired('admin'), (req, res) => {
   const data = readData();
-  data.customers = data.customers.filter((c) => c.id != req.params.id);
+  const customerId = Number(req.params.id);
+
+  data.debt_payments = data.debt_payments.filter((p) => p.customer_id != customerId);
+  data.sales = data.sales.filter((s) => s.customer_id != customerId);
+  data.sale_items = data.sale_items.filter((item) => {
+    const sale = data.sales.find((s) => s.id == item.sale_id);
+    return !sale || sale.customer_id != customerId;
+  });
+  data.customers = data.customers.filter((c) => c.id != customerId);
+
   writeData(data);
   res.json({ success: true });
 });

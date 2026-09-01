@@ -35,6 +35,7 @@ export const api = {
   listCustomers: () => request('/customers'),
   getCustomer: (id) => request(`/customers/${id}`),
   createCustomer: (payload) => request('/customers', { method: 'POST', body: JSON.stringify(payload) }),
+  deleteCustomer: (id) => request(`/customers/${id}`, { method: 'DELETE' }),
   payDebt: (id, payload) => request(`/customers/${id}/pay`, { method: 'POST', body: JSON.stringify(payload) }),
 
   listSales: (from, to) => request(`/sales${from && to ? `?from=${from}&to=${to}` : ''}`),

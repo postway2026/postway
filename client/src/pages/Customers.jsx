@@ -60,6 +60,20 @@ export default function Customers() {
                 <td style={{ display: 'flex', gap: 6 }}>
                   <button className="btn secondary" onClick={() => openDetail(c)}>Tarix</button>
                   {c.current_debt > 0 && <button className="btn" onClick={() => setPayModal(c)}>To'lov qabul qilish</button>}
+                  <button
+                    className="btn danger"
+                    onClick={async () => {
+                      if (!confirm(`"${c.full_name}" mijozni o'chirishni xohlaysizmi?`)) return;
+                      try {
+                        await api.deleteCustomer(c.id);
+                        load();
+                      } catch (e) {
+                        alert(e.message || 'O\'chirishda xatolik yuz berdi');
+                      }
+                    }}
+                  >
+                    O'chirish
+                  </button>
                 </td>
               </tr>
             ))}
