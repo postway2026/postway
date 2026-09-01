@@ -47,6 +47,7 @@ export const api = {
 
   dashboard: () => request('/reports/dashboard'),
   dailyReport: () => request('/reports/daily'),
+  profitReport: (period = 'daily') => request(`/reports/profit?period=${encodeURIComponent(period)}`),
 };
 
 export { getToken };

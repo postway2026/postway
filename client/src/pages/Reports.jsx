@@ -14,6 +14,8 @@ export default function Reports() {
   const [to, setTo] = useState(todayStr());
   const [sales, setSales] = useState([]);
   const [daily, setDaily] = useState([]);
+  const [profitView, setProfitView] = useState('daily');
+  const [profitData, setProfitData] = useState(null);
 
   function load() {
     api.listSales(from, to).then(setSales);
@@ -23,6 +25,10 @@ export default function Reports() {
     load();
     api.dailyReport().then(setDaily);
   }, []);
+
+  useEffect(() => {
+    api.profitReport(profitView).then(setProfitData).catch(() => setProfitData(null));
+  }, [profitView]);
 
   const total = sales.reduce((s, x) => s + x.total_amount, 0);
   const cashTotal = sales.filter((s) => s.payment_type === 'naqd').reduce((s, x) => s + x.total_amount, 0);
@@ -68,6 +74,33 @@ export default function Reports() {
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </div>
         <button className="btn" onClick={load}>Filtrlash</button>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <h3 style={{ margin: 0 }}>Foyda hisoboti</h3>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {['daily', 'monthly', 'yearly'].map((key) => (
+              <button
+                key={key}
+                type="button"
+                className={`btn ${profitView === key ? '' : 'secondary'}`}
+                onClick={() => setProfitView(key)}
+              >
+                {key === 'daily' ? 'Kunlik' : key === 'monthly' ? 'Oylik' : 'Yillik'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {profitData && (
+          <div className="stat-grid" style={{ marginTop: 16 }}>
+            <div className="stat-card"><div className="label">Jami savdo</div><div className="value">{money(profitData.totalSales)}</div></div>
+            <div className="stat-card"><div className="label">Jami tan narx</div><div className="value">{money(profitData.totalCost)}</div></div>
+            <div className="stat-card"><div className="label">Jami xarajat</div><div className="value" style={{ color: 'var(--red)' }}>{money(profitData.totalExpenses)}</div></div>
+            <div className="stat-card"><div className="label">Sof foyda</div><div className="value" style={{ color: profitData.netProfit >= 0 ? 'var(--green)' : 'var(--red)' }}>{money(profitData.netProfit)}</div></div>
+          </div>
+        )}
       </div>
 
       <div className="stat-grid">
