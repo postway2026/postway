@@ -21,9 +21,14 @@ export default function Reports() {
     api.listSales(from, to).then(setSales);
   }
 
-  useEffect(() => {
+  function refreshReports() {
     load();
     api.dailyReport().then(setDaily);
+    api.profitReport(profitView).then(setProfitData).catch(() => setProfitData(null));
+  }
+
+  useEffect(() => {
+    refreshReports();
   }, []);
 
   useEffect(() => {
@@ -112,7 +117,7 @@ export default function Reports() {
 
       <div className="card">
         <table>
-          <thead><tr><th>Sana</th><th>Mijoz</th><th>Sotuvchi</th><th>To'lov turi</th><th>Jami</th></tr></thead>
+          <thead><tr><th>Sana</th><th>Mijoz</th><th>Sotuvchi</th><th>To'lov turi</th><th>Jami</th><th></th></tr></thead>
           <tbody>
             {sales.map((s) => (
               <tr key={s.id}>
@@ -121,9 +126,25 @@ export default function Reports() {
                 <td>{s.seller_name}</td>
                 <td><span className={`badge ${s.payment_type === 'qarz' ? 'red' : 'green'}`}>{s.payment_type}</span></td>
                 <td>{money(s.total_amount)}</td>
+                <td>
+                  <button
+                    className="btn danger"
+                    onClick={async () => {
+                      if (!confirm('Ushbu chekni o\'chirishni xohlaysizmi?')) return;
+                      try {
+                        await api.deleteSale(s.id);
+                        refreshReports();
+                      } catch (e) {
+                        alert(e.message || 'O\'chirishda xatolik yuz berdi');
+                      }
+                    }}
+                  >
+                    O'chirish
+                  </button>
+                </td>
               </tr>
             ))}
-            {sales.length === 0 && <tr><td colSpan={5} style={{ color: 'var(--text-dim)' }}>Bu davrda sotuv yo'q</td></tr>}
+            {sales.length === 0 && <tr><td colSpan={6} style={{ color: 'var(--text-dim)' }}>Bu davrda sotuv yo'q</td></tr>}
           </tbody>
         </table>
       </div>

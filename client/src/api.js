@@ -39,6 +39,7 @@ export const api = {
 
   listSales: (from, to) => request(`/sales${from && to ? `?from=${from}&to=${to}` : ''}`),
   createSale: (payload) => request('/sales', { method: 'POST', body: JSON.stringify(payload) }),
+  deleteSale: (id) => request(`/sales/${id}`, { method: 'DELETE' }),
 
   listCashMovements: () => request('/cash-movements'),
   createCashMovement: (payload) => request('/cash-movements', { method: 'POST', body: JSON.stringify(payload) }),

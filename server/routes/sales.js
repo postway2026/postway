@@ -82,4 +82,22 @@ router.get('/:id', authRequired, (req, res) => {
   res.json({ sale, items });
 });
 
+router.delete('/:id', authRequired, (req, res) => {
+  const data = readData();
+  const sale = data.sales.find((s) => s.id == req.params.id);
+  if (!sale) return res.status(404).json({ error: 'Sotuv topilmadi' });
+
+  for (const it of data.sale_items.filter((item) => item.sale_id == req.params.id)) {
+    const product = data.products.find((p) => p.id == it.product_id);
+    if (product) {
+      product.quantity += Number(it.quantity || 0);
+    }
+  }
+
+  data.sale_items = data.sale_items.filter((item) => item.sale_id != req.params.id);
+  data.sales = data.sales.filter((s) => s.id != req.params.id);
+  writeData(data);
+  res.json({ success: true });
+});
+
 export default router;
