@@ -61,6 +61,8 @@ router.post('/', authRequired, roleRequired('admin', 'omborchi'), (req, res) => 
     part_type,
     costPrice: normalizedCostPrice,
     purchase_price: normalizedCostPrice,
+    sold_count: 0,
+    sales_count: 0,
     sale_price: parseNumber(sale_price),
     quantity: parseNumber(quantity),
     min_quantity: parseNumber(min_quantity ?? 2),
@@ -76,8 +78,9 @@ router.put('/:id', authRequired, roleRequired('admin', 'omborchi'), (req, res) =
   const data = readData();
   const idx = data.products.findIndex((p) => p.id == req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Topilmadi' });
-  const { name, brand, category, part_type, costPrice, purchase_price, sale_price, quantity, min_quantity, car_models } = req.body;
+  const { name, brand, category, part_type, costPrice, purchase_price, sale_price, quantity, min_quantity, car_models, sold_count, sales_count } = req.body;
   const normalizedCostPrice = parseNumber(costPrice ?? purchase_price);
+  const productSoldCount = Number(sold_count ?? sales_count ?? data.products[idx].sold_count ?? data.products[idx].sales_count ?? 0) || 0;
   data.products[idx] = {
     ...data.products[idx],
     name,
@@ -86,6 +89,8 @@ router.put('/:id', authRequired, roleRequired('admin', 'omborchi'), (req, res) =
     part_type,
     costPrice: normalizedCostPrice,
     purchase_price: normalizedCostPrice,
+    sold_count: productSoldCount,
+    sales_count: productSoldCount,
     sale_price: parseNumber(sale_price),
     quantity: parseNumber(quantity),
     min_quantity: parseNumber(min_quantity ?? data.products[idx].min_quantity ?? 2),

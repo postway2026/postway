@@ -38,6 +38,12 @@ export function readData() {
   normalized.seq = { ...emptyData().seq, ...(data.seq || {}) };
   normalized.seq.cash_movements = normalized.seq.cash_movements || 0;
 
+  normalized.products = normalized.products.map((product) => ({
+    ...product,
+    sold_count: Number(product.sold_count ?? product.sales_count ?? 0) || 0,
+    sales_count: Number(product.sales_count ?? product.sold_count ?? 0) || 0,
+  }));
+
   if (JSON.stringify(data) !== JSON.stringify(normalized)) {
     fs.writeFileSync(DB_FILE, JSON.stringify(normalized, null, 2));
   }

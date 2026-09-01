@@ -47,6 +47,8 @@ router.post('/', authRequired, (req, res) => {
     });
     const p = data.products.find((pp) => pp.id == it.product_id);
     p.quantity -= it.quantity;
+    p.sold_count = Number(p.sold_count || 0) + Number(it.quantity || 0);
+    p.sales_count = Number(p.sales_count || 0) + Number(it.quantity || 0);
   }
 
   writeData(data);
@@ -91,6 +93,8 @@ router.delete('/:id', authRequired, (req, res) => {
     const product = data.products.find((p) => p.id == it.product_id);
     if (product) {
       product.quantity += Number(it.quantity || 0);
+      product.sold_count = Math.max(0, Number(product.sold_count || 0) - Number(it.quantity || 0));
+      product.sales_count = Math.max(0, Number(product.sales_count || 0) - Number(it.quantity || 0));
     }
   }
 
