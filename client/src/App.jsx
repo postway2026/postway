@@ -6,6 +6,7 @@ import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Products from './pages/Products.jsx';
 import Pos from './pages/Pos.jsx';
+import CashMovements from './pages/CashMovements.jsx';
 import Customers from './pages/Customers.jsx';
 import Reports from './pages/Reports.jsx';
 import Users from './pages/Users.jsx';
@@ -38,6 +39,7 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="sotuv" element={<Pos />} />
           <Route path="mahsulotlar" element={<Products />} />
+          <Route path="kassa-harakatlari" element={<CashMovements />} />
           <Route path="mijozlar" element={<Customers />} />
           <Route path="hisobotlar" element={<Reports />} />
           <Route

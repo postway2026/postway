@@ -6,6 +6,7 @@ const links = [
   { to: '/', label: '📊 Bosh sahifa', end: true },
   { to: '/sotuv', label: '🛒 Sotuv (kassa)' },
   { to: '/mahsulotlar', label: '📦 Mahsulotlar' },
+  { to: '/kassa-harakatlari', label: '💸 Kassa harakati' },
   { to: '/mijozlar', label: '👥 Mijozlar / Qarz' },
   { to: '/hisobotlar', label: '📈 Hisobotlar' },
   { to: '/xodimlar', label: '🧑‍💼 Xodimlar', adminOnly: true },

@@ -7,6 +7,7 @@ import productRoutes from './routes/products.js';
 import customerRoutes from './routes/customers.js';
 import saleRoutes from './routes/sales.js';
 import reportRoutes from './routes/reports.js';
+import cashMovementRoutes from './routes/cashMovements.js';
 
 dotenv.config();
 
@@ -19,6 +20,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/sales', saleRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/cash-movements', cashMovementRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 

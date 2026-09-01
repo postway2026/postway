@@ -40,6 +40,11 @@ export const api = {
   listSales: (from, to) => request(`/sales${from && to ? `?from=${from}&to=${to}` : ''}`),
   createSale: (payload) => request('/sales', { method: 'POST', body: JSON.stringify(payload) }),
 
+  listCashMovements: () => request('/cash-movements'),
+  createCashMovement: (payload) => request('/cash-movements', { method: 'POST', body: JSON.stringify(payload) }),
+  updateCashMovement: (id, payload) => request(`/cash-movements/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteCashMovement: (id) => request(`/cash-movements/${id}`, { method: 'DELETE' }),
+
   dashboard: () => request('/reports/dashboard'),
   dailyReport: () => request('/reports/daily'),
 };

@@ -14,7 +14,8 @@ function emptyData() {
     sales: [],
     sale_items: [],
     debt_payments: [],
-    seq: { users: 0, products: 0, customers: 0, sales: 0, sale_items: 0, debt_payments: 0 },
+    cash_movements: [],
+    seq: { users: 0, products: 0, customers: 0, sales: 0, sale_items: 0, debt_payments: 0, cash_movements: 0 },
   };
 }
 
