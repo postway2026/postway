@@ -1,4 +1,4 @@
- const BASE = 'https://gm0064-dokon.onrender.com/api'; 
+ const BASE = 'https://postway-rdy4.onrender.com/api';
 
 function getToken() {
   return localStorage.getItem('gm0064_token');
