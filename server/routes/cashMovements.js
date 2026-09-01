@@ -22,6 +22,10 @@ router.post('/', authRequired, (req, res) => {
   }
 
   const data = readData();
+  if (!Array.isArray(data.cash_movements)) {
+    data.cash_movements = [];
+  }
+
   const id = nextId(data, 'cash_movements');
   const now = new Date().toISOString();
 
@@ -42,6 +46,10 @@ router.post('/', authRequired, (req, res) => {
 
 router.put('/:id', authRequired, (req, res) => {
   const data = readData();
+  if (!Array.isArray(data.cash_movements)) {
+    data.cash_movements = [];
+  }
+
   const idx = data.cash_movements.findIndex((item) => item.id == req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Kassa harakati topilmadi' });
 
@@ -62,6 +70,10 @@ router.put('/:id', authRequired, (req, res) => {
 
 router.delete('/:id', authRequired, (req, res) => {
   const data = readData();
+  if (!Array.isArray(data.cash_movements)) {
+    data.cash_movements = [];
+  }
+
   data.cash_movements = data.cash_movements.filter((item) => item.id != req.params.id);
   writeData(data);
   res.json({ success: true });

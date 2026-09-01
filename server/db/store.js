@@ -25,7 +25,24 @@ export function readData() {
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
     return data;
   }
-  return JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
+
+  const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
+  const normalized = { ...emptyData(), ...data };
+
+  normalized.products = Array.isArray(normalized.products) ? normalized.products : [];
+  normalized.customers = Array.isArray(normalized.customers) ? normalized.customers : [];
+  normalized.sales = Array.isArray(normalized.sales) ? normalized.sales : [];
+  normalized.sale_items = Array.isArray(normalized.sale_items) ? normalized.sale_items : [];
+  normalized.debt_payments = Array.isArray(normalized.debt_payments) ? normalized.debt_payments : [];
+  normalized.cash_movements = Array.isArray(normalized.cash_movements) ? normalized.cash_movements : [];
+  normalized.seq = { ...emptyData().seq, ...(data.seq || {}) };
+  normalized.seq.cash_movements = normalized.seq.cash_movements || 0;
+
+  if (JSON.stringify(data) !== JSON.stringify(normalized)) {
+    fs.writeFileSync(DB_FILE, JSON.stringify(normalized, null, 2));
+  }
+
+  return normalized;
 }
 
 export function writeData(data) {
