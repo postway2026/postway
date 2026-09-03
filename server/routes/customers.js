@@ -50,11 +50,18 @@ router.put('/:id', authRequired, (req, res) => {
 });
 
 router.post('/:id/pay', authRequired, (req, res) => {
-  const { amount, note } = req.body;
+  const { amount, note, payment_method } = req.body;
   if (!amount || amount <= 0) return res.status(400).json({ error: "Summani to'g'ri kiriting" });
   const data = readData();
   const id = nextId(data, 'debt_payments');
-  data.debt_payments.push({ id, customer_id: +req.params.id, amount, note: note || '', created_at: new Date().toISOString() });
+  data.debt_payments.push({
+    id,
+    customer_id: +req.params.id,
+    amount,
+    note: note || '',
+    payment_method: payment_method === 'karta' ? 'karta' : 'naqd',
+    created_at: new Date().toISOString(),
+  });
   writeData(data);
   res.json({ success: true });
 });
