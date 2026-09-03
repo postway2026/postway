@@ -53,6 +53,12 @@ input:focus, select:focus, textarea:focus {
   border-right: 1px solid var(--border);
   padding: 20px 12px;
   flex-shrink: 0;
+  /* Sahifa (masalan Hisobotlar) uzun bo'lib, pastga scroll qilinganda ham
+     menyu ekranda joyida turishi uchun "yopishqoq" (sticky) qilib qo'yildi. */
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .sidebar-brand {
