@@ -6,15 +6,21 @@ const router = Router();
 
 router.get('/dashboard', authRequired, (req, res) => {
   const data = readData();
-  const today = new Date().toISOString().slice(0, 10);
-  const monthStart = today.slice(0, 7) + '-01';
+  const { start: todayStart, end: todayEnd } = getPeriodRange('daily');
+  const { start: monthStart, end: monthEnd } = getPeriodRange('monthly');
 
   const currentSales = Array.isArray(data.sales) ? data.sales : [];
   const currentSaleItems = Array.isArray(data.sale_items) ? data.sale_items : [];
   const currentSaleIds = new Set(currentSales.map((s) => Number(s.id)));
 
-  const todaySalesArr = currentSales.filter((s) => s.created_at.slice(0, 10) === today);
-  const monthSalesArr = currentSales.filter((s) => s.created_at.slice(0, 10) >= monthStart);
+  const todaySalesArr = currentSales.filter((s) => {
+    const d = new Date(s.created_at);
+    return d >= todayStart && d <= todayEnd;
+  });
+  const monthSalesArr = currentSales.filter((s) => {
+    const d = new Date(s.created_at);
+    return d >= monthStart && d <= monthEnd;
+  });
 
   const totalDebtRaw = currentSales.reduce((sum, s) => sum + Number(s.debt_amount || 0), 0);
   const totalPaidDebt = (data.debt_payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
@@ -36,12 +42,18 @@ router.get('/dashboard', authRequired, (req, res) => {
     .sort((a, b) => b.total_qty - a.total_qty)
     .slice(0, 5);
 
+  const todayCash = todaySalesArr.filter((s) => s.payment_type === 'naqd').reduce((s, x) => s + Number(x.total_amount || 0), 0);
+  const todayCard = todaySalesArr.filter((s) => s.payment_type === 'karta').reduce((s, x) => s + Number(x.total_amount || 0), 0);
+  const todayDebt = todaySalesArr.filter((s) => s.payment_type === 'qarz').reduce((s, x) => s + Number(x.debt_amount || 0), 0);
+
   res.json({
     todaySales: { total: todaySalesArr.reduce((s, x) => s + Number(x.total_amount || 0), 0), count: todaySalesArr.length },
+    todayBreakdown: { naqd: todayCash, karta: todayCard, qarz: todayDebt },
     monthSales: { total: monthSalesArr.reduce((s, x) => s + Number(x.total_amount || 0), 0), count: monthSalesArr.length },
     totalDebt: totalDebtRaw - totalPaidDebt,
     lowStockCount,
-    productCount: (data.products || []).length,
+    productTypeCount: (data.products || []).length,
+    productUnitCount: (data.products || []).reduce((sum, p) => sum + (Number(p.quantity) || 0), 0),
     topProducts,
   });
 });
@@ -62,25 +74,39 @@ router.get('/daily', authRequired, (req, res) => {
   res.json(rows);
 });
 
+// Do'kon Toshkentda joylashgan (UTC+5, yozgi vaqtga o'tish yo'q).
+// Render kabi hosting serverlari odatda UTC vaqt zonasida ishlaydi, shuning
+// uchun "bugungi kun"ni server vaqtiga qarab hisoblasak, tunning boshlanish
+// qismida (00:00-04:59 mahalliy vaqt) yozilgan yozuvlar noto'g'ri kunga
+// tushib qolishi mumkin edi. Shu sababli kun chegaralarini doim Toshkent
+// vaqtida hisoblaymiz.
+const TASHKENT_OFFSET_MS = 5 * 60 * 60 * 1000;
+
 function getPeriodRange(period = 'daily') {
-  const now = new Date();
-  const start = new Date(now);
-  const end = new Date(now);
+  // Hozirgi vaqtni Toshkent vaqtiga "siljitib" olamiz, shunda UTC
+  // metodlar (setUTCHours va h.k.) aslida mahalliy kunni hisoblaydi.
+  const nowLocal = new Date(Date.now() + TASHKENT_OFFSET_MS);
+  const startLocal = new Date(nowLocal);
+  const endLocal = new Date(nowLocal);
 
   if (period === 'monthly') {
-    start.setDate(1);
-    start.setHours(0, 0, 0, 0);
-    end.setMonth(end.getMonth() + 1, 0);
-    end.setHours(23, 59, 59, 999);
+    startLocal.setUTCDate(1);
+    startLocal.setUTCHours(0, 0, 0, 0);
+    endLocal.setUTCMonth(endLocal.getUTCMonth() + 1, 0);
+    endLocal.setUTCHours(23, 59, 59, 999);
   } else if (period === 'yearly') {
-    start.setMonth(0, 1);
-    start.setHours(0, 0, 0, 0);
-    end.setMonth(11, 31);
-    end.setHours(23, 59, 59, 999);
+    startLocal.setUTCMonth(0, 1);
+    startLocal.setUTCHours(0, 0, 0, 0);
+    endLocal.setUTCMonth(11, 31);
+    endLocal.setUTCHours(23, 59, 59, 999);
   } else {
-    start.setHours(0, 0, 0, 0);
-    end.setHours(23, 59, 59, 999);
+    startLocal.setUTCHours(0, 0, 0, 0);
+    endLocal.setUTCHours(23, 59, 59, 999);
   }
+
+  // Mahalliy chegaralarni haqiqiy UTC vaqtiga qaytaramiz (taqqoslash uchun).
+  const start = new Date(startLocal.getTime() - TASHKENT_OFFSET_MS);
+  const end = new Date(endLocal.getTime() - TASHKENT_OFFSET_MS);
 
   return { start, end };
 }
