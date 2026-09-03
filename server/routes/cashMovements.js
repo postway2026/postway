@@ -16,7 +16,7 @@ router.get('/', authRequired, (req, res) => {
 });
 
 router.post('/', authRequired, (req, res) => {
-  const { amount, category, description, recorded_by, date_time } = req.body;
+  const { amount, category, description, recorded_by, date_time, payment_method } = req.body;
   if (!amount || !category) {
     return res.status(400).json({ error: 'Miqdor va kategoriya majburiy' });
   }
@@ -38,6 +38,8 @@ router.post('/', authRequired, (req, res) => {
     date_time: parseDateTime(date_time),
     created_at: now,
     updated_at: now,
+    payment_method: payment_method === 'karta' ? 'karta' : 'naqd',
+    is_inventory: false,
   });
 
   writeData(data);
@@ -53,7 +55,7 @@ router.put('/:id', authRequired, (req, res) => {
   const idx = data.cash_movements.findIndex((item) => item.id == req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Kassa harakati topilmadi' });
 
-  const { amount, category, description, recorded_by, date_time } = req.body;
+  const { amount, category, description, recorded_by, date_time, payment_method } = req.body;
   data.cash_movements[idx] = {
     ...data.cash_movements[idx],
     amount: Number(amount) || 0,
@@ -62,6 +64,7 @@ router.put('/:id', authRequired, (req, res) => {
     recorded_by: recorded_by || data.cash_movements[idx].recorded_by,
     date_time: parseDateTime(date_time),
     updated_at: new Date().toISOString(),
+    payment_method: payment_method === 'karta' ? 'karta' : (payment_method === 'naqd' ? 'naqd' : data.cash_movements[idx].payment_method || 'naqd'),
   };
 
   writeData(data);
