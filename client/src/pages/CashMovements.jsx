@@ -2,214 +2,245 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 
-const categories = [
-  'Xodim maoshi/pul olish',
-  'Kommunalka (suv, chiroq)',
-  'Musr/tozalash',
-  'Boshqa kunlik xarajat',
-];
+const empty = { name: '', brand: '', category: '', part_type: 'original', costPrice: 0, purchase_price: 0, sale_price: 0, quantity: 0, min_quantity: 2, car_models: '' };
 
-const emptyForm = {
-  amount: '',
-  category: categories[0],
-  description: '',
-  recorded_by: '',
-  date_time: new Date().toISOString().slice(0, 16),
-};
-
-function formatMoney(value) {
-  return Number(value || 0).toLocaleString('uz-UZ') + ' so\'m';
+function normalizeProduct(p = {}) {
+  const costPrice = Number(p.costPrice ?? p.purchase_price ?? 0) || 0;
+  return { ...p, costPrice, purchase_price: costPrice };
 }
 
-function formatDateTime(value) {
-  if (!value) return '-';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleString('uz-UZ', { dateStyle: 'short', timeStyle: 'short' });
+function money(n) {
+  return Number(n || 0).toLocaleString('uz-UZ') + " so'm";
 }
 
-export default function CashMovements() {
-  const { user } = useAuth();
-  const [entries, setEntries] = useState([]);
-  const [form, setForm] = useState(emptyForm);
+export default function Products() {
+  const [products, setProducts] = useState([]);
+  const [search, setSearch] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState(empty);
   const [editingId, setEditingId] = useState(null);
-  const [breakdown, setBreakdown] = useState(null);
+  const [showCostPrices, setShowCostPrices] = useState(false);
+  const [kirimProduct, setKirimProduct] = useState(null);
+  const [kirimForm, setKirimForm] = useState({ quantity: '', unit_cost: '', payment_type: 'naqd', supplier_name: '', note: '' });
+  const { user } = useAuth();
+  const canEdit = user.role === 'admin' || user.role === 'omborchi';
 
-  function load() {
-    api.listCashMovements().then(setEntries).catch(() => {});
+  function load(s) {
+    api.listProducts(s).then((rows) => setProducts(rows.map(normalizeProduct))).catch(() => {});
   }
 
-  function loadBreakdown() {
-    api.dashboard().then((d) => setBreakdown(d.todayBreakdown)).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  function openKirim(p) {
+    setKirimProduct(p);
+    setKirimForm({ quantity: '', unit_cost: p.costPrice ?? p.purchase_price ?? '', payment_type: 'naqd', supplier_name: '', note: '' });
   }
 
-  useEffect(() => {
-    load();
-    loadBreakdown();
-  }, []);
-
-  const total = entries.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  async function handleKirimSave(e) {
+    e.preventDefault();
+    try {
+      await api.stockIn(kirimProduct.id, {
+        quantity: Number(kirimForm.quantity || 0),
+        unit_cost: Number(kirimForm.unit_cost || 0),
+        payment_type: kirimForm.payment_type,
+        supplier_name: kirimForm.supplier_name,
+        note: kirimForm.note,
+      });
+      setKirimProduct(null);
+      load(search);
+    } catch (err) {
+      alert(err.message || 'Kirim qilishda xatolik yuz berdi');
+    }
+  }
 
   function openNew() {
+    setForm(empty);
     setEditingId(null);
-    setForm({
-      ...emptyForm,
-      recorded_by: user?.full_name || '',
-      date_time: new Date().toISOString().slice(0, 16),
-    });
+    setModalOpen(true);
   }
 
-  function openEdit(item) {
-    setEditingId(item.id);
-    setForm({
-      amount: item.amount,
-      category: item.category,
-      description: item.description || '',
-      recorded_by: item.recorded_by || user?.full_name || '',
-      date_time: item.date_time ? new Date(item.date_time).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
-    });
+  function openEdit(p) {
+    setForm(normalizeProduct(p));
+    setEditingId(p.id);
+    setModalOpen(true);
   }
 
-  async function handleSubmit(e) {
+  async function handleSave(e) {
     e.preventDefault();
-
     const payload = {
-      amount: Number(form.amount || 0),
-      category: form.category,
-      description: form.description,
-      recorded_by: form.recorded_by || user?.full_name || 'Noma\'lum',
-      date_time: form.date_time ? new Date(form.date_time).toISOString() : new Date().toISOString(),
+      ...form,
+      costPrice: Number(form.costPrice ?? form.purchase_price ?? 0) || 0,
+      purchase_price: Number(form.costPrice ?? form.purchase_price ?? 0) || 0,
+      sale_price: Number(form.sale_price || 0),
+      quantity: Number(form.quantity || 0),
+      min_quantity: Number(form.min_quantity ?? 2),
     };
 
     if (editingId) {
-      await api.updateCashMovement(editingId, payload);
+      await api.updateProduct(editingId, payload);
     } else {
-      await api.createCashMovement(payload);
+      await api.createProduct(payload);
     }
-
-    setEditingId(null);
-    setForm({
-      ...emptyForm,
-      recorded_by: user?.full_name || '',
-      date_time: new Date().toISOString().slice(0, 16),
-    });
-    load();
-    loadBreakdown();
+    setModalOpen(false);
+    load(search);
   }
 
   async function handleDelete(id) {
-    if (!confirm('Kassa harakatini o\'chirishga ishonchingiz komilmi?')) return;
-    await api.deleteCashMovement(id);
-    load();
-    loadBreakdown();
+    if (!confirm("Mahsulotni o'chirishga ishonchingiz komilmi?")) return;
+    await api.deleteProduct(id);
+    load(search);
   }
 
   return (
     <div>
       <div className="topbar">
-        <h2 style={{ margin: 0 }}>Kassa harakati</h2>
+        <h2 style={{ margin: 0 }}>Mahsulotlar</h2>
+        {canEdit && <button className="btn" onClick={openNew}>+ Yangi mahsulot</button>}
       </div>
 
-      {breakdown && (
-        <div className="stat-grid" style={{ marginBottom: 16 }}>
-          <div className="stat-card"><div className="label">Bugungi naqd</div><div className="value" style={{ color: 'var(--green)' }}>{formatMoney(breakdown.naqd)}</div></div>
-          <div className="stat-card"><div className="label">Bugungi karta</div><div className="value" style={{ color: 'var(--green)' }}>{formatMoney(breakdown.karta)}</div></div>
-          <div className="stat-card"><div className="label">Bugungi qarzga berilgan</div><div className="value" style={{ color: 'var(--red)' }}>{formatMoney(breakdown.qarz)}</div></div>
-        </div>
-      )}
-
-      <div className="card" style={{ marginBottom: 16 }}>
-        <h3 style={{ marginTop: 0 }}>Yangi harakat</h3>
-        <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-            <div className="form-row">
-              <label>Sana va vaqt</label>
-              <input
-                type="datetime-local"
-                value={form.date_time}
-                onChange={(e) => setForm({ ...form, date_time: e.target.value })}
-              />
-            </div>
-            <div className="form-row">
-              <label>Miqdor</label>
-              <input
-                type="number"
-                required
-                value={form.amount}
-                onChange={(e) => setForm({ ...form, amount: e.target.value })}
-              />
-            </div>
-            <div className="form-row">
-              <label>Kategoriya</label>
-              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-                {categories.map((item) => <option key={item} value={item}>{item}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 10 }}>
-            <div className="form-row">
-              <label>Kimga / nima uchun</label>
-              <input
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="Masalan: Ismoil, suv to'lovi..."
-              />
-            </div>
-            <div className="form-row">
-              <label>Qaydnoma qilgan</label>
-              <input
-                value={form.recorded_by}
-                onChange={(e) => setForm({ ...form, recorded_by: e.target.value })}
-                placeholder={user?.full_name || 'Ism'}
-              />
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-            <button type="submit" className="btn">{editingId ? 'Yangilash' : 'Saqlash'}</button>
-            {editingId && (
-              <button type="button" className="btn secondary" onClick={openNew}>Bekor qilish</button>
-            )}
-          </div>
-        </form>
+      <div className="card" style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
+        <input
+          placeholder="Qidirish: nomi, brend, mashina modeli..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); load(e.target.value); }}
+          style={{ flex: 1 }}
+        />
+        {canEdit && (
+          <button type="button" className="btn secondary" onClick={() => setShowCostPrices((v) => !v)}>
+            {showCostPrices ? '🙈' : '👁️'} {showCostPrices ? 'Yashirish' : 'Ko\'rsatish'}
+          </button>
+        )}
       </div>
 
       <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h3 style={{ margin: 0 }}>Harakatlar ro'yxati</h3>
-          <div style={{ fontWeight: 700, color: 'var(--red)' }}>Jami: {formatMoney(total)}</div>
-        </div>
-
         <table>
           <thead>
             <tr>
-              <th>Sana</th>
-              <th>Miqdor</th>
-              <th>Kategoriya</th>
-              <th>Ta'rif</th>
-              <th>Qaydnoma</th>
-              <th></th>
+              <th>Nomi</th><th>Brend</th><th>Turi</th><th>Tan narx</th><th>Narx</th><th>Qoldiq</th>{canEdit && <th></th>}
             </tr>
           </thead>
           <tbody>
-            {entries.map((item) => (
-              <tr key={item.id}>
-                <td>{formatDateTime(item.date_time)}</td>
-                <td style={{ color: 'var(--red)', fontWeight: 700 }}>{formatMoney(item.amount)}</td>
-                <td>{item.category}</td>
-                <td>{item.description || '-'}</td>
-                <td>{item.recorded_by || '-'}</td>
-                <td style={{ display: 'flex', gap: 6 }}>
-                  <button className="btn secondary" onClick={() => openEdit(item)}>Tahrirlash</button>
-                  <button className="btn danger" onClick={() => handleDelete(item.id)}>O'chirish</button>
+            {products.map((p) => (
+              <tr key={p.id}>
+                <td>{p.name}<div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{p.car_models}</div></td>
+                <td>{p.brand}</td>
+                <td>
+                  <span className={`badge ${p.part_type === 'original' ? 'green' : 'orange'}`}>
+                    {p.part_type === 'original' ? 'Original' : 'Ishlatilgan'}
+                  </span>
                 </td>
+                <td>{showCostPrices ? money(p.costPrice ?? p.purchase_price ?? 0) : '••••••'}</td>
+                <td>{money(p.sale_price)}</td>
+                <td>
+                  <span className={`badge ${p.quantity <= p.min_quantity ? 'red' : 'green'}`}>{p.quantity} dona</span>
+                </td>
+                {canEdit && (
+                  <td style={{ display: 'flex', gap: 6 }}>
+                    <button className="btn secondary" onClick={() => openKirim(p)}>📥 Kirim</button>
+                    <button className="btn secondary" onClick={() => openEdit(p)}>Tahrirlash</button>
+                    {user.role === 'admin' && <button className="btn danger" onClick={() => handleDelete(p.id)}>O'chirish</button>}
+                  </td>
+                )}
               </tr>
             ))}
-            {entries.length === 0 && <tr><td colSpan={6} style={{ color: 'var(--text-dim)' }}>Kassa harakati yo'q</td></tr>}
+            {products.length === 0 && <tr><td colSpan={canEdit ? 7 : 6} style={{ color: 'var(--text-dim)' }}>Mahsulot topilmadi</td></tr>}
           </tbody>
         </table>
       </div>
+
+      {modalOpen && (
+        <div className="modal-overlay" onClick={() => setModalOpen(false)}>
+          <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSave}>
+            <h3 style={{ marginTop: 0 }}>{editingId ? 'Mahsulotni tahrirlash' : 'Yangi mahsulot'}</h3>
+            <div className="form-row">
+              <label>Nomi *</label>
+              <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div className="form-row">
+              <label>Brend</label>
+              <input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} placeholder="masalan: Bosch, Chevrolet" />
+            </div>
+            <div className="form-row">
+              <label>Mos mashina modellari</label>
+              <input value={form.car_models} onChange={(e) => setForm({ ...form, car_models: e.target.value })} placeholder="masalan: Nexia, Cobalt, Malibu" />
+            </div>
+            <div className="form-row">
+              <label>Turi</label>
+              <select value={form.part_type} onChange={(e) => setForm({ ...form, part_type: e.target.value })}>
+                <option value="original">Original</option>
+                <option value="ishlatilgan">Ishlatilgan</option>
+              </select>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div className="form-row">
+                <label>Tan narx</label>
+                <input type="number" value={form.costPrice ?? form.purchase_price ?? 0} onChange={(e) => setForm({ ...form, costPrice: +e.target.value, purchase_price: +e.target.value })} />
+              </div>
+              <div className="form-row">
+                <label>Sotish narxi *</label>
+                <input required type="number" value={form.sale_price} onChange={(e) => setForm({ ...form, sale_price: +e.target.value })} />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div className="form-row">
+                <label>Qoldiq soni</label>
+                <input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: +e.target.value })} />
+              </div>
+              <div className="form-row">
+                <label>Minimal qoldiq (ogohlantirish)</label>
+                <input type="number" value={form.min_quantity} onChange={(e) => setForm({ ...form, min_quantity: +e.target.value })} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+              <button type="button" className="btn secondary" style={{ flex: 1 }} onClick={() => setModalOpen(false)}>Bekor qilish</button>
+              <button className="btn" style={{ flex: 1 }}>Saqlash</button>
+            </div>
+          </form>
+        </div>
+      )}
+      {kirimProduct && (
+        <div className="modal-overlay" onClick={() => setKirimProduct(null)}>
+          <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleKirimSave}>
+            <h3 style={{ marginTop: 0 }}>Kirim: {kirimProduct.name}</h3>
+            <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 10 }}>Hozirgi qoldiq: {kirimProduct.quantity} dona</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div className="form-row">
+                <label>Qo'shiladigan miqdor *</label>
+                <input required type="number" value={kirimForm.quantity} onChange={(e) => setKirimForm({ ...kirimForm, quantity: e.target.value })} />
+              </div>
+              <div className="form-row">
+                <label>Dona tan narxi *</label>
+                <input required type="number" value={kirimForm.unit_cost} onChange={(e) => setKirimForm({ ...kirimForm, unit_cost: e.target.value })} />
+              </div>
+            </div>
+            <div className="form-row">
+              <label>Qanday to'landi? *</label>
+              <select value={kirimForm.payment_type} onChange={(e) => setKirimForm({ ...kirimForm, payment_type: e.target.value })}>
+                <option value="naqd">💵 Naqd (kassadan ayiriladi)</option>
+                <option value="karta">💳 Karta (kassadan ayiriladi)</option>
+                <option value="nasiya">📒 Nasiya (ta'minotchiga qarz yoziladi)</option>
+              </select>
+            </div>
+            {kirimForm.payment_type === 'nasiya' && (
+              <div className="form-row">
+                <label>Ta'minotchi nomi *</label>
+                <input required value={kirimForm.supplier_name} onChange={(e) => setKirimForm({ ...kirimForm, supplier_name: e.target.value })} placeholder="masalan: Mavlon aka, Timsoll" />
+              </div>
+            )}
+            <div className="form-row">
+              <label>Izoh</label>
+              <input value={kirimForm.note} onChange={(e) => setKirimForm({ ...kirimForm, note: e.target.value })} />
+            </div>
+            <div style={{ fontWeight: 700, marginBottom: 10 }}>
+              Jami: {money(Number(kirimForm.quantity || 0) * Number(kirimForm.unit_cost || 0))}
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" className="btn secondary" style={{ flex: 1 }} onClick={() => setKirimProduct(null)}>Bekor qilish</button>
+              <button className="btn" style={{ flex: 1 }}>Saqlash</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
