@@ -36,6 +36,18 @@ export default function Dashboard() {
           <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>{data.todaySales.count} ta chek</div>
         </div>
         <div className="stat-card">
+          <div className="label">Bugungi naqd</div>
+          <div className="value" style={{ color: 'var(--green)' }}>{money(data.todayBreakdown?.naqd)}</div>
+        </div>
+        <div className="stat-card">
+          <div className="label">Bugungi karta</div>
+          <div className="value" style={{ color: 'var(--green)' }}>{money(data.todayBreakdown?.karta)}</div>
+        </div>
+        <div className="stat-card">
+          <div className="label">Bugungi qarzga berilgan</div>
+          <div className="value" style={{ color: 'var(--red)' }}>{money(data.todayBreakdown?.qarz)}</div>
+        </div>
+        <div className="stat-card">
           <div className="label">Shu oylik savdo</div>
           <div className="value">{money(data.monthSales.total)}</div>
           <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>{data.monthSales.count} ta chek</div>
@@ -45,8 +57,12 @@ export default function Dashboard() {
           <div className="value" style={{ color: 'var(--red)' }}>{money(data.totalDebt)}</div>
         </div>
         <div className="stat-card">
-          <div className="label">Mahsulotlar soni</div>
-          <div className="value">{data.productCount}</div>
+          <div className="label">Mahsulot turi</div>
+          <div className="value">{data.productTypeCount}</div>
+        </div>
+        <div className="stat-card">
+          <div className="label">Mahsulotlar soni (dona)</div>
+          <div className="value">{data.productUnitCount}</div>
         </div>
         <div className="stat-card">
           <div className="label">Kam qolgan mahsulot</div>
