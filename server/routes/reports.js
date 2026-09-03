@@ -46,9 +46,30 @@ router.get('/dashboard', authRequired, (req, res) => {
   const todayCard = todaySalesArr.filter((s) => s.payment_type === 'karta').reduce((s, x) => s + Number(x.total_amount || 0), 0);
   const todayDebt = todaySalesArr.filter((s) => s.payment_type === 'qarz').reduce((s, x) => s + Number(x.debt_amount || 0), 0);
 
+  // (17) Kassada real qancha naqt/karta pul borligi — barcha davr bo'yicha:
+  // savdodan kelgan pul + qarz to'lovlaridan kelgan pul − xarajatlar
+  // (shu jumladan mahsulot kirimiga ketgan pul, chunki bu ham kassadan
+  // haqiqatda chiqib ketgan pul).
+  const allSales = currentSales;
+  const allCashMovements = Array.isArray(data.cash_movements) ? data.cash_movements : [];
+  const allDebtPayments = Array.isArray(data.debt_payments) ? data.debt_payments : [];
+
+  const cashIn = allSales.filter((s) => s.payment_type === 'naqd').reduce((s, x) => s + Number(x.total_amount || 0), 0)
+    + allSales.filter((s) => s.payment_type === 'qarz').reduce((s, x) => s + Number(x.paid_amount || 0), 0)
+    + allDebtPayments.filter((p) => (p.payment_method || 'naqd') === 'naqd').reduce((s, p) => s + Number(p.amount || 0), 0);
+  const cashOut = allCashMovements.filter((m) => (m.payment_method || 'naqd') === 'naqd').reduce((s, m) => s + Number(m.amount || 0), 0);
+  const cashOnHand = cashIn - cashOut;
+
+  const cardIn = allSales.filter((s) => s.payment_type === 'karta').reduce((s, x) => s + Number(x.total_amount || 0), 0)
+    + allDebtPayments.filter((p) => p.payment_method === 'karta').reduce((s, p) => s + Number(p.amount || 0), 0);
+  const cardOut = allCashMovements.filter((m) => m.payment_method === 'karta').reduce((s, m) => s + Number(m.amount || 0), 0);
+  const cardOnHand = cardIn - cardOut;
+
   res.json({
     todaySales: { total: todaySalesArr.reduce((s, x) => s + Number(x.total_amount || 0), 0), count: todaySalesArr.length },
     todayBreakdown: { naqd: todayCash, karta: todayCard, qarz: todayDebt },
+    cashOnHand,
+    cardOnHand,
     monthSales: { total: monthSalesArr.reduce((s, x) => s + Number(x.total_amount || 0), 0), count: monthSalesArr.length },
     totalDebt: totalDebtRaw - totalPaidDebt,
     lowStockCount,
@@ -132,14 +153,43 @@ router.get('/profit', authRequired, (req, res) => {
     return sum + unitCost * quantity;
   }, 0);
 
-  const totalExpenses = (data.cash_movements || [])
-    .filter((item) => {
-      const d = new Date(item.date_time || item.created_at || 0);
+  // (16) Mahsulot kirimiga (aylanma mablag'ga) ketgan pul xarajat sifatida
+  // hisoblanmaydi — chunki tan narx allaqachon yuqorida totalCost orqali
+  // har bir sotuvda hisobga olingan. Faqat haqiqiy, qaytmaydigan xarajatlar
+  // (maosh, kommunalka va h.k.) "Jami xarajat"ga kiradi.
+  const expensesInPeriod = (data.cash_movements || []).filter((item) => {
+    const d = new Date(item.date_time || item.created_at || 0);
+    return d >= start && d <= end && !item.is_inventory;
+  });
+  const totalExpenses = expensesInPeriod.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+  // (11) Qarzga sotilgan mahsulotning foydasi mijoz qarzni to'lamaguncha
+  // "real" hisoblanmaydi. Sotuv vaqtida faqat to'langan qism (paid_amount)
+  // real tushum hisoblanadi; qarz to'langan payt (debt_payments) o'sha
+  // davrning real foydasiga qo'shiladi, chunki tan narx allaqachon sotuv
+  // vaqtida bir marta ayirilgan.
+  const naqdKartaRevenue = salesInPeriod
+    .filter((s) => s.payment_type !== 'qarz')
+    .reduce((sum, s) => sum + Number(s.total_amount || 0), 0);
+  const qarzSalesPaidNow = salesInPeriod
+    .filter((s) => s.payment_type === 'qarz')
+    .reduce((sum, s) => sum + Number(s.paid_amount || 0), 0);
+  const newDebtCreated = salesInPeriod
+    .filter((s) => s.payment_type === 'qarz')
+    .reduce((sum, s) => sum + Number(s.debt_amount || 0), 0);
+  const debtCollectedInPeriod = (data.debt_payments || [])
+    .filter((p) => {
+      const d = new Date(p.created_at || 0);
       return d >= start && d <= end;
     })
-    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
-  const netProfit = totalSales - totalCost - totalExpenses;
+  const realizedRevenue = naqdKartaRevenue + qarzSalesPaidNow + debtCollectedInPeriod;
+  const kassaFoyda = realizedRevenue - totalCost - totalExpenses;
+  const kutilayotganFoyda = newDebtCreated;
+
+  // Eski nom (netProfit) muvofiqlik uchun endi "kassaFoyda" bilan bir xil qiymatni bildiradi.
+  const netProfit = kassaFoyda;
 
   res.json({
     period,
@@ -149,11 +199,10 @@ router.get('/profit', authRequired, (req, res) => {
     totalCost,
     totalExpenses,
     netProfit,
+    kassaFoyda,
+    kutilayotganFoyda,
     salesCount: salesInPeriod.length,
-    expenseCount: (data.cash_movements || []).filter((item) => {
-      const d = new Date(item.date_time || item.created_at || 0);
-      return d >= start && d <= end;
-    }).length,
+    expenseCount: expensesInPeriod.length,
   });
 });
 
