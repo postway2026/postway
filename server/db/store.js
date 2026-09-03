@@ -2,9 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
+import pg from 'pg';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_FILE = path.join(__dirname, 'shop-data.json');
 
 function emptyData() {
   return {
@@ -19,14 +19,7 @@ function emptyData() {
   };
 }
 
-export function readData() {
-  if (!fs.existsSync(DB_FILE)) {
-    const data = emptyData();
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
-    return data;
-  }
-
-  const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
+function normalize(data) {
   const normalized = { ...emptyData(), ...data };
 
   normalized.products = Array.isArray(normalized.products) ? normalized.products : [];
@@ -44,15 +37,101 @@ export function readData() {
     sales_count: Number(product.sales_count ?? product.sold_count ?? 0) || 0,
   }));
 
-  if (JSON.stringify(data) !== JSON.stringify(normalized)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify(normalized, null, 2));
-  }
-
   return normalized;
 }
 
-export function writeData(data) {
+// ---------------------------------------------------------------------
+// SAQLASH USULI: DATABASE_URL muhit o'zgaruvchisi berilgan bo'lsa
+// (masalan Supabase Postgres manzili), ma'lumotlar Postgres bazasida
+// doimiy saqlanadi (server qayta ishga tushsa ham o'chib qolmaydi).
+//
+// Agar DATABASE_URL berilmagan bo'lsa, avvalgidek oddiy JSON fayl
+// ishlatiladi (bu Render'ning bepul tarifida server qayta ishga
+// tushganda o'chib qoladi — faqat lokal/test uchun mos).
+// ---------------------------------------------------------------------
+
+const DATABASE_URL = process.env.DATABASE_URL;
+
+let cachedData = null;
+let pool = null;
+
+// ---------- POSTGRES REJIMI ----------
+async function initPostgres() {
+  pool = new pg.Pool({
+    connectionString: DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+  });
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS shop_data (
+      id INTEGER PRIMARY KEY DEFAULT 1,
+      data JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CONSTRAINT single_row CHECK (id = 1)
+    );
+  `);
+
+  const res = await pool.query('SELECT data FROM shop_data WHERE id = 1');
+  if (res.rows.length === 0) {
+    const initialData = emptyData();
+    await pool.query('INSERT INTO shop_data (id, data) VALUES (1, $1)', [JSON.stringify(initialData)]);
+    cachedData = initialData;
+  } else {
+    cachedData = normalize(res.rows[0].data);
+  }
+
+  console.log('✅ Ma\'lumotlar bazasi: Postgres (Supabase) ga ulandi — ma\'lumotlar doimiy saqlanadi');
+}
+
+function persistToPostgres(data) {
+  if (!pool) return;
+  pool.query('UPDATE shop_data SET data = $1, updated_at = now() WHERE id = 1', [JSON.stringify(data)])
+    .catch((err) => {
+      console.error('❌ Postgres bazasiga yozishda xato:', err.message);
+    });
+}
+
+// ---------- JSON FAYL REJIMI (zaxira/lokal rejim) ----------
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+const DB_FILE = path.join(DATA_DIR, 'shop-data.json');
+
+function initFileMode() {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+  if (!fs.existsSync(DB_FILE)) {
+    cachedData = emptyData();
+    fs.writeFileSync(DB_FILE, JSON.stringify(cachedData, null, 2));
+  } else {
+    cachedData = normalize(JSON.parse(fs.readFileSync(DB_FILE, 'utf-8')));
+  }
+  console.log('⚠️  Ma\'lumotlar bazasi: oddiy JSON fayl (DATABASE_URL berilmagan). ' +
+    'Bepul Render tarifida bu server qayta ishga tushganda ma\'lumot o\'chishi mumkin.');
+}
+
+function persistToFile(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+}
+
+// ---------- INITSIALIZATSIYA ----------
+if (DATABASE_URL) {
+  await initPostgres();
+} else {
+  initFileMode();
+}
+
+// ---------- OMMAVIY (PUBLIC) FUNKSIYALAR — avvalgi API bilan bir xil ----------
+export function readData() {
+  return cachedData;
+}
+
+export function writeData(data) {
+  cachedData = data;
+  if (DATABASE_URL) {
+    persistToPostgres(data);
+  } else {
+    persistToFile(data);
+  }
 }
 
 export function nextId(data, table) {
