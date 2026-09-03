@@ -1,32 +1,60 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
+const BASE = 'https://postway-rdy4.onrender.com/api';
 
-import authRoutes from './routes/auth.js';
-import productRoutes from './routes/products.js';
-import customerRoutes from './routes/customers.js';
-import saleRoutes from './routes/sales.js';
-import reportRoutes from './routes/reports.js';
-import cashMovementRoutes from './routes/cashMovements.js';
-import supplierDebtRoutes from './routes/supplierDebts.js';
+function getToken() {
+  return localStorage.getItem('gm0064_token');
+}
 
-dotenv.config();
+async function request(path, options = {}) {
+  const token = getToken();
+  const res = await fetch(BASE + path, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Xatolik yuz berdi");
+  return data;
+}
 
-const app = express();
-app.use(cors());
-app.use(express.json());
+export const api = {
+  login: (username, password) =>
+    request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  me: () => request('/auth/me'),
+  createUser: (payload) => request('/auth/users', { method: 'POST', body: JSON.stringify(payload) }),
+  listUsers: () => request('/auth/users'),
 
-app.use('/api/auth', authRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/customers', customerRoutes);
-app.use('/api/sales', saleRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/cash-movements', cashMovementRoutes);
-app.use('/api/supplier-debts', supplierDebtRoutes);
+  listProducts: (search) => request(`/products${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+  lowStock: () => request('/products/low-stock'),
+  createProduct: (payload) => request('/products', { method: 'POST', body: JSON.stringify(payload) }),
+  updateProduct: (id, payload) => request(`/products/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteProduct: (id) => request(`/products/${id}`, { method: 'DELETE' }),
+  stockIn: (id, payload) => request(`/products/${id}/kirim`, { method: 'POST', body: JSON.stringify(payload) }),
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+  listCustomers: () => request('/customers'),
+  getCustomer: (id) => request(`/customers/${id}`),
+  createCustomer: (payload) => request('/customers', { method: 'POST', body: JSON.stringify(payload) }),
+  deleteCustomer: (id) => request(`/customers/${id}`, { method: 'DELETE' }),
+  payDebt: (id, payload) => request(`/customers/${id}/pay`, { method: 'POST', body: JSON.stringify(payload) }),
 
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`✅ GM_0064 server ${PORT}-portda ishga tushdi`);
-});
+  listSupplierDebts: () => request('/supplier-debts'),
+  supplierDebtEntries: (name) => request(`/supplier-debts/${encodeURIComponent(name)}/entries`),
+  paySupplierDebt: (payload) => request('/supplier-debts/pay', { method: 'POST', body: JSON.stringify(payload) }),
+
+  listSales: (from, to) => request(`/sales${from && to ? `?from=${from}&to=${to}` : ''}`),
+  createSale: (payload) => request('/sales', { method: 'POST', body: JSON.stringify(payload) }),
+  deleteSale: (id) => request(`/sales/${id}`, { method: 'DELETE' }),
+
+  listCashMovements: () => request('/cash-movements'),
+  createCashMovement: (payload) => request('/cash-movements', { method: 'POST', body: JSON.stringify(payload) }),
+  updateCashMovement: (id, payload) => request(`/cash-movements/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteCashMovement: (id) => request(`/cash-movements/${id}`, { method: 'DELETE' }),
+
+  dashboard: () => request('/reports/dashboard'),
+  dailyReport: () => request('/reports/daily'),
+  profitReport: (period = 'daily') => request(`/reports/profit?period=${encodeURIComponent(period)}`),
+};
+
+export { getToken };
