@@ -108,4 +108,71 @@ router.delete('/:id', authRequired, roleRequired('admin'), (req, res) => {
   res.json({ success: true });
 });
 
+// ---------- YUK KIRIM (mahsulot kirim qilish, to'lov turi bilan) ----------
+// Bog'liq: (13) — naqt/karta bo'lsa kassa balansidan ayiriladi (aylanma
+// mablag' sifatida, alohida "is_inventory" belgisi bilan — foyda hisobidan
+// ikki marta ayirilmasligi uchun, chunki tan narx allaqachon har bir
+// sotuvda hisoblanadi); nasiya bo'lsa "Ta'minotchilarga qarzim" bo'limiga yoziladi.
+router.post('/:id/kirim', authRequired, roleRequired('admin', 'omborchi'), (req, res) => {
+  const { quantity, unit_cost, payment_type, supplier_name, note } = req.body;
+  const qty = parseNumber(quantity);
+  const cost = parseNumber(unit_cost);
+
+  if (qty <= 0) return res.status(400).json({ error: "Miqdorni to'g'ri kiriting" });
+  if (!['naqd', 'karta', 'nasiya'].includes(payment_type)) {
+    return res.status(400).json({ error: "To'lov turini tanlang" });
+  }
+  if (payment_type === 'nasiya' && !supplier_name) {
+    return res.status(400).json({ error: 'Nasiya uchun ta\'minotchi nomini kiriting' });
+  }
+
+  const data = readData();
+  const idx = data.products.findIndex((p) => p.id == req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Topilmadi' });
+
+  const totalAmount = qty * cost;
+  const now = new Date().toISOString();
+
+  data.products[idx] = {
+    ...data.products[idx],
+    quantity: parseNumber(data.products[idx].quantity) + qty,
+    costPrice: cost || data.products[idx].costPrice,
+    purchase_price: cost || data.products[idx].purchase_price,
+    updated_at: now,
+  };
+
+  if (payment_type === 'nasiya') {
+    if (!Array.isArray(data.supplier_debts)) data.supplier_debts = [];
+    const id = nextId(data, 'supplier_debts');
+    data.supplier_debts.push({
+      id,
+      supplier_name,
+      amount: totalAmount,
+      product_id: data.products[idx].id,
+      product_name: data.products[idx].name,
+      quantity: qty,
+      note: note || '',
+      created_at: now,
+    });
+  } else {
+    if (!Array.isArray(data.cash_movements)) data.cash_movements = [];
+    const id = nextId(data, 'cash_movements');
+    data.cash_movements.push({
+      id,
+      amount: totalAmount,
+      category: 'Mahsulot kirim (yuk)',
+      description: `${data.products[idx].name} — ${qty} dona`,
+      recorded_by: req.user?.full_name || "Noma'lum",
+      date_time: now,
+      created_at: now,
+      updated_at: now,
+      payment_method: payment_type,
+      is_inventory: true,
+    });
+  }
+
+  writeData(data);
+  res.json({ success: true, product: normalizeProduct(data.products[idx]) });
+});
+
 export default router;
