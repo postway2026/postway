@@ -5,135 +5,70 @@ function money(n) {
   return Number(n || 0).toLocaleString('uz-UZ') + " so'm";
 }
 
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-export default function Reports() {
-  const [from, setFrom] = useState(todayStr());
-  const [to, setTo] = useState(todayStr());
-  const [sales, setSales] = useState([]);
-  const [daily, setDaily] = useState([]);
-  const [profitView, setProfitView] = useState('daily');
-  const [profitData, setProfitData] = useState(null);
+export default function Customers() {
+  const [customers, setCustomers] = useState([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState({ full_name: '', phone: '', note: '' });
+  const [payModal, setPayModal] = useState(null);
+  const [payAmount, setPayAmount] = useState('');
+  const [payMethod, setPayMethod] = useState('naqd');
+  const [detail, setDetail] = useState(null);
 
   function load() {
-    api.listSales(from, to).then(setSales);
+    api.listCustomers().then(setCustomers);
   }
+  useEffect(load, []);
 
-  function refreshReports() {
+  async function handleSave(e) {
+    e.preventDefault();
+    await api.createCustomer(form);
+    setModalOpen(false);
+    setForm({ full_name: '', phone: '', note: '' });
     load();
-    api.dailyReport().then(setDaily);
-    api.profitReport(profitView).then(setProfitData).catch(() => setProfitData(null));
   }
 
-  useEffect(() => {
-    refreshReports();
-  }, []);
+  async function openDetail(c) {
+    const d = await api.getCustomer(c.id);
+    setDetail(d);
+  }
 
-  useEffect(() => {
-    api.profitReport(profitView).then(setProfitData).catch(() => setProfitData(null));
-  }, [profitView]);
-
-  const total = sales.reduce((s, x) => s + x.total_amount, 0);
-  const cashTotal = sales.filter((s) => s.payment_type === 'naqd').reduce((s, x) => s + x.total_amount, 0);
-  const cardTotal = sales.filter((s) => s.payment_type === 'karta').reduce((s, x) => s + x.total_amount, 0);
-  const debtTotal = sales.filter((s) => s.payment_type === 'qarz').reduce((s, x) => s + x.debt_amount, 0);
-
-  const maxDaily = Math.max(1, ...daily.map((d) => d.total));
+  async function handlePay(e) {
+    e.preventDefault();
+    await api.payDebt(payModal.id, { amount: +payAmount, payment_method: payMethod });
+    setPayModal(null);
+    setPayAmount('');
+    setPayMethod('naqd');
+    load();
+  }
 
   return (
     <div>
       <div className="topbar">
-        <h2 style={{ margin: 0 }}>Hisobotlar</h2>
-      </div>
-
-      <div className="card" style={{ marginBottom: 16 }}>
-        <h4 style={{ marginTop: 0 }}>Oxirgi 14 kunlik savdo</h4>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 140 }}>
-          {daily.map((d) => (
-            <div key={d.day} style={{ flex: 1, textAlign: 'center' }}>
-              <div
-                title={money(d.total)}
-                style={{
-                  background: 'var(--accent)',
-                  height: `${Math.max(4, (d.total / maxDaily) * 110)}px`,
-                  borderRadius: 4,
-                  marginBottom: 4,
-                }}
-              />
-              <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>{d.day.slice(5)}</div>
-            </div>
-          ))}
-          {daily.length === 0 && <div style={{ color: 'var(--text-dim)' }}>Ma'lumot yo'q</div>}
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 16, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div className="form-row" style={{ marginBottom: 0 }}>
-          <label>Dan</label>
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-        </div>
-        <div className="form-row" style={{ marginBottom: 0 }}>
-          <label>Gacha</label>
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-        </div>
-        <button className="btn" onClick={load}>Filtrlash</button>
-      </div>
-
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <h3 style={{ margin: 0 }}>Foyda hisoboti</h3>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {['daily', 'monthly', 'yearly'].map((key) => (
-              <button
-                key={key}
-                type="button"
-                className={`btn ${profitView === key ? '' : 'secondary'}`}
-                onClick={() => setProfitView(key)}
-              >
-                {key === 'daily' ? 'Kunlik' : key === 'monthly' ? 'Oylik' : 'Yillik'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {profitData && (
-          <div className="stat-grid" style={{ marginTop: 16 }}>
-            <div className="stat-card"><div className="label">Jami savdo</div><div className="value">{money(profitData.totalSales)}</div></div>
-            <div className="stat-card"><div className="label">Jami tan narx</div><div className="value">{money(profitData.totalCost)}</div></div>
-            <div className="stat-card"><div className="label">Jami xarajat</div><div className="value" style={{ color: 'var(--red)' }}>{money(profitData.totalExpenses)}</div></div>
-            <div className="stat-card"><div className="label">Sof foyda</div><div className="value" style={{ color: profitData.netProfit >= 0 ? 'var(--green)' : 'var(--red)' }}>{money(profitData.netProfit)}</div></div>
-          </div>
-        )}
-      </div>
-
-      <div className="stat-grid">
-        <div className="stat-card"><div className="label">Jami savdo</div><div className="value">{money(total)}</div></div>
-        <div className="stat-card"><div className="label">Naqd</div><div className="value">{money(cashTotal)}</div></div>
-        <div className="stat-card"><div className="label">Karta</div><div className="value">{money(cardTotal)}</div></div>
-        <div className="stat-card"><div className="label">Qarzga berilgan</div><div className="value" style={{ color: 'var(--red)' }}>{money(debtTotal)}</div></div>
+        <h2 style={{ margin: 0 }}>Mijozlar / Qarz daftari</h2>
+        <button className="btn" onClick={() => setModalOpen(true)}>+ Yangi mijoz</button>
       </div>
 
       <div className="card">
         <table>
-          <thead><tr><th>Sana</th><th>Mijoz</th><th>Sotuvchi</th><th>To'lov turi</th><th>Jami</th><th></th></tr></thead>
+          <thead><tr><th>Ism</th><th>Telefon</th><th>Qarzi</th><th></th></tr></thead>
           <tbody>
-            {sales.map((s) => (
-              <tr key={s.id}>
-                <td>{new Date(s.created_at).toLocaleString('uz-UZ')}</td>
-                <td>{s.customer_name || '—'}</td>
-                <td>{s.seller_name}</td>
-                <td><span className={`badge ${s.payment_type === 'qarz' ? 'red' : 'green'}`}>{s.payment_type}</span></td>
-                <td>{money(s.total_amount)}</td>
+            {customers.map((c) => (
+              <tr key={c.id}>
+                <td>{c.full_name}</td>
+                <td>{c.phone}</td>
                 <td>
+                  <span className={`badge ${c.current_debt > 0 ? 'red' : 'green'}`}>{money(c.current_debt)}</span>
+                </td>
+                <td style={{ display: 'flex', gap: 6 }}>
+                  <button className="btn secondary" onClick={() => openDetail(c)}>Tarix</button>
+                  {c.current_debt > 0 && <button className="btn" onClick={() => { setPayModal(c); setPayMethod('naqd'); }}>To'lov qabul qilish</button>}
                   <button
                     className="btn danger"
                     onClick={async () => {
-                      if (!confirm('Ushbu chekni o\'chirishni xohlaysizmi?')) return;
+                      if (!confirm(`"${c.full_name}" mijozni o'chirishni xohlaysizmi?`)) return;
                       try {
-                        await api.deleteSale(s.id);
-                        refreshReports();
+                        await api.deleteCustomer(c.id);
+                        load();
                       } catch (e) {
                         alert(e.message || 'O\'chirishda xatolik yuz berdi');
                       }
@@ -144,10 +79,80 @@ export default function Reports() {
                 </td>
               </tr>
             ))}
-            {sales.length === 0 && <tr><td colSpan={6} style={{ color: 'var(--text-dim)' }}>Bu davrda sotuv yo'q</td></tr>}
+            {customers.length === 0 && <tr><td colSpan={4} style={{ color: 'var(--text-dim)' }}>Mijozlar yo'q</td></tr>}
           </tbody>
         </table>
       </div>
+
+      {modalOpen && (
+        <div className="modal-overlay" onClick={() => setModalOpen(false)}>
+          <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSave}>
+            <h3 style={{ marginTop: 0 }}>Yangi mijoz</h3>
+            <div className="form-row"><label>Ism familiya *</label><input required value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /></div>
+            <div className="form-row"><label>Telefon</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+998 90 123 45 67" /></div>
+            <div className="form-row"><label>Izoh</label><textarea value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} rows={3} /></div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" className="btn secondary" style={{ flex: 1 }} onClick={() => setModalOpen(false)}>Bekor qilish</button>
+              <button className="btn" style={{ flex: 1 }}>Saqlash</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {payModal && (
+        <div className="modal-overlay" onClick={() => setPayModal(null)}>
+          <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handlePay}>
+            <h3 style={{ marginTop: 0 }}>{payModal.full_name} — to'lov qabul qilish</h3>
+            <div className="form-row"><label>Qarzi: {money(payModal.current_debt)}</label></div>
+            <div className="form-row"><label>To'lov summasi</label><input required type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} /></div>
+            <div className="form-row">
+              <label>Qanday to'landi?</label>
+              <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
+                <option value="naqd">💵 Naqd</option>
+                <option value="karta">💳 Karta</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" className="btn secondary" style={{ flex: 1 }} onClick={() => setPayModal(null)}>Bekor qilish</button>
+              <button className="btn" style={{ flex: 1 }}>Tasdiqlash</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {detail && (
+        <div className="modal-overlay" onClick={() => setDetail(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
+            <h3 style={{ marginTop: 0 }}>{detail.customer.full_name} — tarix</h3>
+            <h4>Xaridlar</h4>
+            <table>
+              <thead><tr><th>Sana</th><th>Jami</th><th>To'langan</th><th>Qarz</th></tr></thead>
+              <tbody>
+                {detail.sales.map((s) => (
+                  <tr key={s.id}>
+                    <td>{new Date(s.created_at).toLocaleDateString('uz-UZ')}</td>
+                    <td>{money(s.total_amount)}</td>
+                    <td>{money(s.paid_amount)}</td>
+                    <td>{money(s.debt_amount)}</td>
+                  </tr>
+                ))}
+                {detail.sales.length === 0 && <tr><td colSpan={4} style={{ color: 'var(--text-dim)' }}>Xaridlar yo'q</td></tr>}
+              </tbody>
+            </table>
+            <h4>To'lovlar</h4>
+            <table>
+              <thead><tr><th>Sana</th><th>Summa</th></tr></thead>
+              <tbody>
+                {detail.payments.map((p) => (
+                  <tr key={p.id}><td>{new Date(p.created_at).toLocaleDateString('uz-UZ')}</td><td>{money(p.amount)}</td></tr>
+                ))}
+                {detail.payments.length === 0 && <tr><td colSpan={2} style={{ color: 'var(--text-dim)' }}>To'lovlar yo'q</td></tr>}
+              </tbody>
+            </table>
+            <button className="btn secondary" style={{ width: '100%', marginTop: 10 }} onClick={() => setDetail(null)}>Yopish</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
