@@ -1,110 +1,226 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
+import { useAuth } from '../AuthContext.jsx';
 
-function money(n) {
-  return Number(n || 0).toLocaleString('uz-UZ') + " so'm";
+const categories = [
+  'Xodim maoshi/pul olish',
+  'Kommunalka (suv, chiroq)',
+  'Musr/tozalash',
+  'Boshqa kunlik xarajat',
+];
+
+const emptyForm = {
+  amount: '',
+  category: categories[0],
+  description: '',
+  recorded_by: '',
+  date_time: new Date().toISOString().slice(0, 16),
+  payment_method: 'naqd',
+};
+
+function formatMoney(value) {
+  return Number(value || 0).toLocaleString('uz-UZ') + ' so\'m';
 }
 
-export default function Dashboard() {
-  const [data, setData] = useState(null);
-  const [lowStock, setLowStock] = useState([]);
+function formatDateTime(value) {
+  if (!value) return '-';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleString('uz-UZ', { dateStyle: 'short', timeStyle: 'short' });
+}
 
-  function loadDashboard() {
-    api.dashboard().then(setData).catch(() => {});
-    api.lowStock().then(setLowStock).catch(() => {});
+export default function CashMovements() {
+  const { user } = useAuth();
+  const [entries, setEntries] = useState([]);
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState(null);
+  const [breakdown, setBreakdown] = useState(null);
+
+  function load() {
+    api.listCashMovements().then(setEntries).catch(() => {});
+  }
+
+  function loadBreakdown() {
+    api.dashboard().then((d) => setBreakdown(d.todayBreakdown)).catch(() => {});
   }
 
   useEffect(() => {
-    loadDashboard();
-    const onFocus = () => loadDashboard();
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
+    load();
+    loadBreakdown();
   }, []);
 
-  if (!data) return <div>Yuklanmoqda...</div>;
+  const total = entries.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+  function openNew() {
+    setEditingId(null);
+    setForm({
+      ...emptyForm,
+      recorded_by: user?.full_name || '',
+      date_time: new Date().toISOString().slice(0, 16),
+    });
+  }
+
+  function openEdit(item) {
+    setEditingId(item.id);
+    setForm({
+      amount: item.amount,
+      category: item.category,
+      description: item.description || '',
+      recorded_by: item.recorded_by || user?.full_name || '',
+      date_time: item.date_time ? new Date(item.date_time).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+      payment_method: item.payment_method === 'karta' ? 'karta' : 'naqd',
+    });
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+
+    const payload = {
+      amount: Number(form.amount || 0),
+      category: form.category,
+      description: form.description,
+      recorded_by: form.recorded_by || user?.full_name || 'Noma\'lum',
+      date_time: form.date_time ? new Date(form.date_time).toISOString() : new Date().toISOString(),
+      payment_method: form.payment_method === 'karta' ? 'karta' : 'naqd',
+    };
+
+    if (editingId) {
+      await api.updateCashMovement(editingId, payload);
+    } else {
+      await api.createCashMovement(payload);
+    }
+
+    setEditingId(null);
+    setForm({
+      ...emptyForm,
+      recorded_by: user?.full_name || '',
+      date_time: new Date().toISOString().slice(0, 16),
+    });
+    load();
+    loadBreakdown();
+  }
+
+  async function handleDelete(id) {
+    if (!confirm('Kassa harakatini o\'chirishga ishonchingiz komilmi?')) return;
+    await api.deleteCashMovement(id);
+    load();
+    loadBreakdown();
+  }
 
   return (
     <div>
       <div className="topbar">
-        <h2 style={{ margin: 0 }}>Bosh sahifa</h2>
+        <h2 style={{ margin: 0 }}>Kassa harakati</h2>
       </div>
 
-      <div className="stat-grid">
-        <div className="stat-card">
-          <div className="label">Bugungi savdo</div>
-          <div className="value">{money(data.todaySales.total)}</div>
-          <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>{data.todaySales.count} ta chek</div>
+      {breakdown && (
+        <div className="stat-grid" style={{ marginBottom: 16 }}>
+          <div className="stat-card"><div className="label">Bugungi naqd</div><div className="value" style={{ color: 'var(--green)' }}>{formatMoney(breakdown.naqd)}</div></div>
+          <div className="stat-card"><div className="label">Bugungi karta</div><div className="value" style={{ color: 'var(--green)' }}>{formatMoney(breakdown.karta)}</div></div>
+          <div className="stat-card"><div className="label">Bugungi qarzga berilgan</div><div className="value" style={{ color: 'var(--red)' }}>{formatMoney(breakdown.qarz)}</div></div>
         </div>
-        <div className="stat-card">
-          <div className="label">Bugungi naqd</div>
-          <div className="value" style={{ color: 'var(--green)' }}>{money(data.todayBreakdown?.naqd)}</div>
-        </div>
-        <div className="stat-card">
-          <div className="label">Bugungi karta</div>
-          <div className="value" style={{ color: 'var(--green)' }}>{money(data.todayBreakdown?.karta)}</div>
-        </div>
-        <div className="stat-card">
-          <div className="label">Bugungi qarzga berilgan</div>
-          <div className="value" style={{ color: 'var(--red)' }}>{money(data.todayBreakdown?.qarz)}</div>
-        </div>
-        <div className="stat-card">
-          <div className="label">Shu oylik savdo</div>
-          <div className="value">{money(data.monthSales.total)}</div>
-          <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>{data.monthSales.count} ta chek</div>
-        </div>
-        <div className="stat-card">
-          <div className="label">Umumiy qarzdorlik</div>
-          <div className="value" style={{ color: 'var(--red)' }}>{money(data.totalDebt)}</div>
-        </div>
-        <div className="stat-card">
-          <div className="label">Mahsulot turi</div>
-          <div className="value">{data.productTypeCount}</div>
-        </div>
-        <div className="stat-card">
-          <div className="label">Mahsulotlar soni (dona)</div>
-          <div className="value">{data.productUnitCount}</div>
-        </div>
-        <div className="stat-card">
-          <div className="label">Kam qolgan mahsulot</div>
-          <div className="value" style={{ color: data.lowStockCount > 0 ? 'var(--accent)' : 'var(--green)' }}>
-            {data.lowStockCount}
+      )}
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h3 style={{ marginTop: 0 }}>Yangi harakat</h3>
+        <form onSubmit={handleSubmit}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
+            <div className="form-row">
+              <label>Sana va vaqt</label>
+              <input
+                type="datetime-local"
+                value={form.date_time}
+                onChange={(e) => setForm({ ...form, date_time: e.target.value })}
+              />
+            </div>
+            <div className="form-row">
+              <label>Miqdor</label>
+              <input
+                type="number"
+                required
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              />
+            </div>
+            <div className="form-row">
+              <label>Kategoriya</label>
+              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+                {categories.map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+            </div>
+            <div className="form-row">
+              <label>To'lov turi</label>
+              <select value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}>
+                <option value="naqd">💵 Naqd</option>
+                <option value="karta">💳 Karta</option>
+              </select>
+            </div>
           </div>
-        </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 10 }}>
+            <div className="form-row">
+              <label>Kimga / nima uchun</label>
+              <input
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                placeholder="Masalan: Ismoil, suv to'lovi..."
+              />
+            </div>
+            <div className="form-row">
+              <label>Qaydnoma qilgan</label>
+              <input
+                value={form.recorded_by}
+                onChange={(e) => setForm({ ...form, recorded_by: e.target.value })}
+                placeholder={user?.full_name || 'Ism'}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+            <button type="submit" className="btn">{editingId ? 'Yangilash' : 'Saqlash'}</button>
+            {editingId && (
+              <button type="button" className="btn secondary" onClick={openNew}>Bekor qilish</button>
+            )}
+          </div>
+        </form>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>🔥 Eng ko'p sotilgan</h3>
-          <table>
-            <thead><tr><th>Mahsulot</th><th>Soni</th><th>Summa</th></tr></thead>
-            <tbody>
-              {data.topProducts.map((p, i) => (
-                <tr key={i}>
-                  <td>{p.product_name}</td>
-                  <td>{p.total_qty}</td>
-                  <td>{money(p.total_sum)}</td>
-                </tr>
-              ))}
-              {data.topProducts.length === 0 && <tr><td colSpan={3} style={{ color: 'var(--text-dim)' }}>Hali sotuv yo'q</td></tr>}
-            </tbody>
-          </table>
+      <div className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h3 style={{ margin: 0 }}>Harakatlar ro'yxati</h3>
+          <div style={{ fontWeight: 700, color: 'var(--red)' }}>Jami: {formatMoney(total)}</div>
         </div>
 
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>⚠️ Kam qolgan mahsulotlar</h3>
-          <table>
-            <thead><tr><th>Mahsulot</th><th>Qoldiq</th></tr></thead>
-            <tbody>
-              {lowStock.slice(0, 8).map((p) => (
-                <tr key={p.id}>
-                  <td>{p.name}</td>
-                  <td><span className="badge orange">{p.quantity} dona</span></td>
-                </tr>
-              ))}
-              {lowStock.length === 0 && <tr><td colSpan={2} style={{ color: 'var(--text-dim)' }}>Hammasi yetarli ✅</td></tr>}
-            </tbody>
-          </table>
-        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Sana</th>
+              <th>Miqdor</th>
+              <th>Kategoriya</th>
+              <th>To'lov</th>
+              <th>Ta'rif</th>
+              <th>Qaydnoma</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map((item) => (
+              <tr key={item.id}>
+                <td>{formatDateTime(item.date_time)}</td>
+                <td style={{ color: 'var(--red)', fontWeight: 700 }}>{formatMoney(item.amount)}</td>
+                <td>{item.category}</td>
+                <td><span className={`badge ${item.payment_method === 'karta' ? 'green' : 'orange'}`}>{item.payment_method === 'karta' ? 'Karta' : 'Naqd'}</span></td>
+                <td>{item.description || '-'}</td>
+                <td>{item.recorded_by || '-'}</td>
+                <td style={{ display: 'flex', gap: 6 }}>
+                  <button className="btn secondary" onClick={() => openEdit(item)}>Tahrirlash</button>
+                  <button className="btn danger" onClick={() => handleDelete(item.id)}>O'chirish</button>
+                </td>
+              </tr>
+            ))}
+            {entries.length === 0 && <tr><td colSpan={7} style={{ color: 'var(--text-dim)' }}>Kassa harakati yo'q</td></tr>}
+          </tbody>
+        </table>
       </div>
     </div>
   );
