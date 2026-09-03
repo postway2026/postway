@@ -1,22 +1,74 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api.js';
 
 function money(n) {
   return Number(n || 0).toLocaleString('uz-UZ') + " so'm";
 }
 
+const CART_STORAGE_KEY = 'gm0064_pos_cart_v1';
+
+function loadSavedCart() {
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function saveCart(state) {
+  try {
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // localStorage ishlamasa ham, ilova ishlashda davom etaveradi
+  }
+}
+
+function clearSavedCart() {
+  try {
+    localStorage.removeItem(CART_STORAGE_KEY);
+  } catch {
+    // e'tiborsiz qoldiramiz
+  }
+}
+
 export default function Pos() {
+  const saved = useMemo(() => loadSavedCart(), []);
+
   const [search, setSearch] = useState('');
   const [products, setProducts] = useState([]);
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(saved?.cart || []);
   const [customers, setCustomers] = useState([]);
-  const [customerId, setCustomerId] = useState('');
-  const [paidAmount, setPaidAmount] = useState('');
+  const [customerId, setCustomerId] = useState(saved?.customerId || '');
+  const [customerSearch, setCustomerSearch] = useState(saved?.customerSearch || '');
+  const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [quickAddForm, setQuickAddForm] = useState({ full_name: '', phone: '' });
+  const [paidAmount, setPaidAmount] = useState(saved?.paidAmount || '');
   const [message, setMessage] = useState('');
+  const customerBoxRef = useRef(null);
 
   useEffect(() => {
     api.listProducts().then(setProducts);
     api.listCustomers().then(setCustomers);
+  }, []);
+
+  // Savatni har o'zgarishda saqlab boramiz — mijoz qo'shish uchun boshqa
+  // sahifaga o'tib qaytilsa ham, savat mazmuni yo'qolmasin.
+  useEffect(() => {
+    saveCart({ cart, customerId, customerSearch, paidAmount });
+  }, [cart, customerId, customerSearch, paidAmount]);
+
+  // Mijoz tanlash oynasidan tashqariga bosilsa, ro'yxat yopiladi.
+  useEffect(() => {
+    function onClickOutside(e) {
+      if (customerBoxRef.current && !customerBoxRef.current.contains(e.target)) {
+        setCustomerDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
   }, []);
 
   function search_(s) {
@@ -44,6 +96,46 @@ export default function Pos() {
 
   const total = cart.reduce((s, it) => s + it.quantity * it.unit_price, 0);
 
+  const filteredCustomers = useMemo(() => {
+    const q = customerSearch.trim().toLowerCase();
+    if (!q) return customers;
+    return customers.filter((c) =>
+      (c.full_name || '').toLowerCase().includes(q) || (c.phone || '').toLowerCase().includes(q)
+    );
+  }, [customers, customerSearch]);
+
+  function selectCustomer(c) {
+    setCustomerId(c.id);
+    setCustomerSearch(c.full_name);
+    setCustomerDropdownOpen(false);
+  }
+
+  function clearCustomer() {
+    setCustomerId('');
+    setCustomerSearch('');
+  }
+
+  function openQuickAdd() {
+    setQuickAddForm({ full_name: customerSearch && !customerId ? customerSearch : '', phone: '' });
+    setQuickAddOpen(true);
+    setCustomerDropdownOpen(false);
+  }
+
+  async function handleQuickAddSave(e) {
+    e.preventDefault();
+    if (!quickAddForm.full_name.trim()) return;
+    try {
+      const res = await api.createCustomer({ full_name: quickAddForm.full_name.trim(), phone: quickAddForm.phone, note: '' });
+      const newCustomer = { id: res.id, full_name: quickAddForm.full_name.trim(), phone: quickAddForm.phone, current_debt: 0 };
+      setCustomers((prev) => [...prev, newCustomer]);
+      setCustomerId(res.id);
+      setCustomerSearch(newCustomer.full_name);
+      setQuickAddOpen(false);
+    } catch (err) {
+      alert(err.message || "Mijoz qo'shishda xatolik yuz berdi");
+    }
+  }
+
   async function handleCheckout(payment_type) {
     setMessage('');
     if (cart.length === 0) return;
@@ -58,7 +150,9 @@ export default function Pos() {
       setMessage('✅ Sotuv muvaffaqiyatli amalga oshirildi!');
       setCart([]);
       setCustomerId('');
+      setCustomerSearch('');
       setPaidAmount('');
+      clearSavedCart();
       api.listProducts(search).then(setProducts);
     } catch (e) {
       setMessage('❌ ' + e.message);
@@ -120,12 +214,71 @@ export default function Pos() {
             <span>Jami:</span><span>{money(total)}</span>
           </div>
 
-          <div className="form-row">
+          <div className="form-row" ref={customerBoxRef} style={{ position: 'relative' }}>
             <label>Mijoz (ixtiyoriy)</label>
-            <select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-              <option value="">Tanlanmagan</option>
-              {customers.map((c) => <option key={c.id} value={c.id}>{c.full_name}</option>)}
-            </select>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                style={{ flex: 1 }}
+                placeholder="Ism yoki telefon bo'yicha qidirish..."
+                value={customerSearch}
+                onChange={(e) => {
+                  setCustomerSearch(e.target.value);
+                  setCustomerId('');
+                  setCustomerDropdownOpen(true);
+                }}
+                onFocus={() => setCustomerDropdownOpen(true)}
+              />
+              {customerId && (
+                <button type="button" className="btn secondary" style={{ padding: '6px 10px' }} onClick={clearCustomer} title="Mijozni bekor qilish">✕</button>
+              )}
+            </div>
+
+            {customerDropdownOpen && (
+              <div
+                className="card"
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  zIndex: 20,
+                  marginTop: 4,
+                  maxHeight: 220,
+                  overflowY: 'auto',
+                  padding: 6,
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ width: '100%', marginBottom: 6 }}
+                  onClick={openQuickAdd}
+                >
+                  + Yangi mijoz qo'shish
+                </button>
+                {filteredCustomers.map((c) => (
+                  <div
+                    key={c.id}
+                    onClick={() => selectCustomer(c)}
+                    style={{
+                      padding: '8px 10px',
+                      cursor: 'pointer',
+                      borderRadius: 6,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--border)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <span>{c.full_name}</span>
+                    <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>{c.phone}</span>
+                  </div>
+                ))}
+                {filteredCustomers.length === 0 && (
+                  <div style={{ padding: '8px 10px', color: 'var(--text-dim)', fontSize: 13 }}>Mijoz topilmadi</div>
+                )}
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: 8 }}>
@@ -143,6 +296,35 @@ export default function Pos() {
           </div>
         </div>
       </div>
+
+      {quickAddOpen && (
+        <div className="modal-overlay" onClick={() => setQuickAddOpen(false)}>
+          <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleQuickAddSave}>
+            <h3 style={{ marginTop: 0 }}>Yangi mijoz</h3>
+            <div className="form-row">
+              <label>Ism familiya *</label>
+              <input
+                required
+                autoFocus
+                value={quickAddForm.full_name}
+                onChange={(e) => setQuickAddForm({ ...quickAddForm, full_name: e.target.value })}
+              />
+            </div>
+            <div className="form-row">
+              <label>Telefon</label>
+              <input
+                value={quickAddForm.phone}
+                onChange={(e) => setQuickAddForm({ ...quickAddForm, phone: e.target.value })}
+                placeholder="+998 90 123 45 67"
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" className="btn secondary" style={{ flex: 1 }} onClick={() => setQuickAddOpen(false)}>Bekor qilish</button>
+              <button className="btn" style={{ flex: 1 }}>Saqlash va tanlash</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
