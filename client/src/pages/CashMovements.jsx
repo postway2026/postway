@@ -33,13 +33,19 @@ export default function CashMovements() {
   const [entries, setEntries] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
+  const [breakdown, setBreakdown] = useState(null);
 
   function load() {
     api.listCashMovements().then(setEntries).catch(() => {});
   }
 
+  function loadBreakdown() {
+    api.dashboard().then((d) => setBreakdown(d.todayBreakdown)).catch(() => {});
+  }
+
   useEffect(() => {
     load();
+    loadBreakdown();
   }, []);
 
   const total = entries.reduce((sum, item) => sum + Number(item.amount || 0), 0);
@@ -88,12 +94,14 @@ export default function CashMovements() {
       date_time: new Date().toISOString().slice(0, 16),
     });
     load();
+    loadBreakdown();
   }
 
   async function handleDelete(id) {
     if (!confirm('Kassa harakatini o\'chirishga ishonchingiz komilmi?')) return;
     await api.deleteCashMovement(id);
     load();
+    loadBreakdown();
   }
 
   return (
@@ -101,6 +109,14 @@ export default function CashMovements() {
       <div className="topbar">
         <h2 style={{ margin: 0 }}>Kassa harakati</h2>
       </div>
+
+      {breakdown && (
+        <div className="stat-grid" style={{ marginBottom: 16 }}>
+          <div className="stat-card"><div className="label">Bugungi naqd</div><div className="value" style={{ color: 'var(--green)' }}>{formatMoney(breakdown.naqd)}</div></div>
+          <div className="stat-card"><div className="label">Bugungi karta</div><div className="value" style={{ color: 'var(--green)' }}>{formatMoney(breakdown.karta)}</div></div>
+          <div className="stat-card"><div className="label">Bugungi qarzga berilgan</div><div className="value" style={{ color: 'var(--red)' }}>{formatMoney(breakdown.qarz)}</div></div>
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 16 }}>
         <h3 style={{ marginTop: 0 }}>Yangi harakat</h3>
