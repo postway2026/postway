@@ -15,7 +15,9 @@ function emptyData() {
     sale_items: [],
     debt_payments: [],
     cash_movements: [],
-    seq: { users: 0, products: 0, customers: 0, sales: 0, sale_items: 0, debt_payments: 0, cash_movements: 0 },
+    supplier_debts: [],
+    supplier_debt_payments: [],
+    seq: { users: 0, products: 0, customers: 0, sales: 0, sale_items: 0, debt_payments: 0, cash_movements: 0, supplier_debts: 0, supplier_debt_payments: 0 },
   };
 }
 
@@ -28,8 +30,12 @@ function normalize(data) {
   normalized.sale_items = Array.isArray(normalized.sale_items) ? normalized.sale_items : [];
   normalized.debt_payments = Array.isArray(normalized.debt_payments) ? normalized.debt_payments : [];
   normalized.cash_movements = Array.isArray(normalized.cash_movements) ? normalized.cash_movements : [];
+  normalized.supplier_debts = Array.isArray(normalized.supplier_debts) ? normalized.supplier_debts : [];
+  normalized.supplier_debt_payments = Array.isArray(normalized.supplier_debt_payments) ? normalized.supplier_debt_payments : [];
   normalized.seq = { ...emptyData().seq, ...(data.seq || {}) };
   normalized.seq.cash_movements = normalized.seq.cash_movements || 0;
+  normalized.seq.supplier_debts = normalized.seq.supplier_debts || 0;
+  normalized.seq.supplier_debt_payments = normalized.seq.supplier_debt_payments || 0;
 
   normalized.products = normalized.products.map((product) => ({
     ...product,
