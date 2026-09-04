@@ -10,7 +10,7 @@ function normalizeProduct(p = {}) {
 }
 
 function money(n) {
-  return Number(n || 0).toLocaleString('uz-UZ') + " so'm";
+  return Math.round(Number(n || 0)).toLocaleString('uz-UZ') + " so'm";
 }
 
 export default function Products() {
