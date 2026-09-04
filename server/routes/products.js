@@ -46,14 +46,31 @@ router.get('/:id', authRequired, (req, res) => {
   res.json(normalizeProduct(row));
 });
 
+// ---------- YANGI MAHSULOT YARATISH ----------
+// Bog'liq: (13) — agar boshlang'ich miqdor (quantity) > 0 bo'lsa, bu ham
+// "Kirim" bilan bir xil tan narx x miqdor summasini kassadan ayiradi
+// (naqt/karta bo'lsa) yoki ta'minotchiga qarz sifatida yozadi (nasiya
+// bo'lsa) — xuddi mavjud mahsulotga kirim qilingandagi kabi, chunki bu ham
+// aylanma mablag' sarfi.
 router.post('/', authRequired, roleRequired('admin', 'omborchi'), (req, res) => {
-  const { name, brand, category, part_type, costPrice, purchase_price, sale_price, quantity, min_quantity, car_models } = req.body;
+  const { name, brand, category, part_type, costPrice, purchase_price, sale_price, quantity, min_quantity, car_models, payment_type, supplier_name, note } = req.body;
   if (!name || !part_type) return res.status(400).json({ error: 'Nomi va turi majburiy' });
+  const qty = parseNumber(quantity);
+  const normalizedCostPrice = parseNumber(costPrice ?? purchase_price);
+
+  if (qty > 0 && normalizedCostPrice > 0) {
+    if (!['naqd', 'karta', 'nasiya'].includes(payment_type)) {
+      return res.status(400).json({ error: "To'lov turini tanlang" });
+    }
+    if (payment_type === 'nasiya' && !supplier_name) {
+      return res.status(400).json({ error: "Nasiya uchun ta'minotchi nomini kiriting" });
+    }
+  }
+
   const data = readData();
   const id = nextId(data, 'products');
   const now = new Date().toISOString();
-  const normalizedCostPrice = parseNumber(costPrice ?? purchase_price);
-  data.products.push({
+  const newProduct = {
     id,
     name,
     brand: brand || '',
@@ -64,12 +81,47 @@ router.post('/', authRequired, roleRequired('admin', 'omborchi'), (req, res) => 
     sold_count: 0,
     sales_count: 0,
     sale_price: parseNumber(sale_price),
-    quantity: parseNumber(quantity),
+    quantity: qty,
     min_quantity: parseNumber(min_quantity ?? 2),
     car_models: car_models || '',
     created_at: now,
     updated_at: now,
-  });
+  };
+  data.products.push(newProduct);
+
+  if (qty > 0 && normalizedCostPrice > 0) {
+    const totalAmount = qty * normalizedCostPrice;
+    if (payment_type === 'nasiya') {
+      if (!Array.isArray(data.supplier_debts)) data.supplier_debts = [];
+      const debtId = nextId(data, 'supplier_debts');
+      data.supplier_debts.push({
+        id: debtId,
+        supplier_name,
+        amount: totalAmount,
+        product_id: id,
+        product_name: newProduct.name,
+        quantity: qty,
+        note: note || '',
+        created_at: now,
+      });
+    } else {
+      if (!Array.isArray(data.cash_movements)) data.cash_movements = [];
+      const movementId = nextId(data, 'cash_movements');
+      data.cash_movements.push({
+        id: movementId,
+        amount: totalAmount,
+        category: 'Mahsulot kirim (yuk)',
+        description: `${newProduct.name} — ${qty} dona (yangi mahsulot)`,
+        recorded_by: req.user?.full_name || "Noma'lum",
+        date_time: now,
+        created_at: now,
+        updated_at: now,
+        payment_method: payment_type,
+        is_inventory: true,
+      });
+    }
+  }
+
   writeData(data);
   res.json({ id });
 });
