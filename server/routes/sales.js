@@ -22,6 +22,17 @@ router.post('/', authRequired, (req, res) => {
   const paid = paid_amount ?? total_amount;
   const debt_amount = Math.max(0, total_amount - paid);
 
+  // (22) Sotuv vaqtida tan narxni "qulflab qo'yamiz" — mahsulotning
+  // keyinchalik narxi o'zgarsa ham, shu sotuvning marjasi (foydasi)
+  // o'zgarmay qoladi. debt_remaining boshida to'liq qarz summasiga teng,
+  // mijoz qarzni to'lagan sari (customers.js/:id/pay) kamayib boradi.
+  const cost_amount = items.reduce((sum, it) => {
+    const product = data.products.find((pp) => pp.id == it.product_id);
+    const unitCost = Number(product?.costPrice ?? product?.purchase_price ?? 0) || 0;
+    return sum + unitCost * Number(it.quantity || 0);
+  }, 0);
+  const margin = total_amount - cost_amount;
+
   const saleId = nextId(data, 'sales');
   data.sales.push({
     id: saleId,
@@ -30,6 +41,9 @@ router.post('/', authRequired, (req, res) => {
     total_amount,
     paid_amount: paid,
     debt_amount,
+    debt_remaining: debt_amount,
+    cost_amount,
+    margin,
     payment_type: debt_amount > 0 ? 'qarz' : payment_type || 'naqd',
     created_at: new Date().toISOString(),
   });
