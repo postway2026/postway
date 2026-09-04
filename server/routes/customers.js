@@ -53,15 +53,33 @@ router.post('/:id/pay', authRequired, (req, res) => {
   const { amount, note, payment_method } = req.body;
   if (!amount || amount <= 0) return res.status(400).json({ error: "Summani to'g'ri kiriting" });
   const data = readData();
+  const customerId = +req.params.id;
+
   const id = nextId(data, 'debt_payments');
   data.debt_payments.push({
     id,
-    customer_id: +req.params.id,
+    customer_id: customerId,
     amount,
     note: note || '',
     payment_method: payment_method === 'karta' ? 'karta' : 'naqd',
     created_at: new Date().toISOString(),
   });
+
+  // (22) To'lovni mijozning eng eski qarzli sotuvidan boshlab (FIFO)
+  // taqsimlaymiz, har bir sotuvning debt_remaining qoldig'ini kamaytirib —
+  // shunda "kutilayotgan foyda" har doim aniq (faqat to'lanmagan marja
+  // qismini) ko'rsatadi.
+  const customerSales = data.sales
+    .filter((s) => s.customer_id == customerId && Number(s.debt_remaining || 0) > 0)
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  let remaining = Number(amount);
+  for (const sale of customerSales) {
+    if (remaining <= 0) break;
+    const applied = Math.min(remaining, Number(sale.debt_remaining || 0));
+    sale.debt_remaining = Number(sale.debt_remaining || 0) - applied;
+    remaining -= applied;
+  }
+
   writeData(data);
   res.json({ success: true });
 });
