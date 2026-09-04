@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api.js';
 
 function money(n) {
-  return Number(n || 0).toLocaleString('uz-UZ') + " so'm";
+  return Math.round(Number(n || 0)).toLocaleString('uz-UZ') + " so'm";
 }
 
 const CART_STORAGE_KEY = 'gm0064_pos_cart_v1';
