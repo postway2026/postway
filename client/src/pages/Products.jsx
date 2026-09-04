@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 
-const empty = { name: '', brand: '', category: '', part_type: 'original', costPrice: 0, purchase_price: 0, sale_price: 0, quantity: 0, min_quantity: 2, car_models: '' };
+const empty = { name: '', brand: '', category: '', part_type: 'original', costPrice: 0, purchase_price: 0, sale_price: 0, quantity: 0, min_quantity: 2, car_models: '', payment_type: 'naqd', supplier_name: '' };
 
 function normalizeProduct(p = {}) {
   const costPrice = Number(p.costPrice ?? p.purchase_price ?? 0) || 0;
@@ -76,13 +76,17 @@ export default function Products() {
       min_quantity: Number(form.min_quantity ?? 2),
     };
 
-    if (editingId) {
-      await api.updateProduct(editingId, payload);
-    } else {
-      await api.createProduct(payload);
+    try {
+      if (editingId) {
+        await api.updateProduct(editingId, payload);
+      } else {
+        await api.createProduct(payload);
+      }
+      setModalOpen(false);
+      load(search);
+    } catch (err) {
+      alert(err.message || 'Saqlashda xatolik yuz berdi');
     }
-    setModalOpen(false);
-    load(search);
   }
 
   async function handleDelete(id) {
@@ -191,6 +195,27 @@ export default function Products() {
                 <input type="number" value={form.min_quantity} onChange={(e) => setForm({ ...form, min_quantity: +e.target.value })} />
               </div>
             </div>
+            {!editingId && Number(form.quantity) > 0 && Number(form.costPrice ?? form.purchase_price ?? 0) > 0 && (
+              <>
+                <div className="form-row">
+                  <label>Boshlang'ich zaxira qanday to'landi? *</label>
+                  <select value={form.payment_type} onChange={(e) => setForm({ ...form, payment_type: e.target.value })}>
+                    <option value="naqd">💵 Naqd (kassadan ayiriladi)</option>
+                    <option value="karta">💳 Karta (kassadan ayiriladi)</option>
+                    <option value="nasiya">📒 Nasiya (ta'minotchiga qarz yoziladi)</option>
+                  </select>
+                </div>
+                {form.payment_type === 'nasiya' && (
+                  <div className="form-row">
+                    <label>Ta'minotchi nomi *</label>
+                    <input required value={form.supplier_name} onChange={(e) => setForm({ ...form, supplier_name: e.target.value })} placeholder="masalan: Mavlon aka, Timsoll" />
+                  </div>
+                )}
+                <div style={{ fontWeight: 700, marginBottom: 4, color: 'var(--text-dim)', fontSize: 13 }}>
+                  Jami: {money(Number(form.quantity || 0) * Number(form.costPrice ?? form.purchase_price ?? 0))}
+                </div>
+              </>
+            )}
             <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
               <button type="button" className="btn secondary" style={{ flex: 1 }} onClick={() => setModalOpen(false)}>Bekor qilish</button>
               <button className="btn" style={{ flex: 1 }}>Saqlash</button>
