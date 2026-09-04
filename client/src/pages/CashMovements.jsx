@@ -48,7 +48,10 @@ export default function CashMovements() {
     loadBreakdown();
   }, []);
 
-  const total = entries.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const manualEntries = entries.filter((item) => !item.is_inventory);
+  const inventoryEntries = entries.filter((item) => item.is_inventory);
+  const manualTotal = manualEntries.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const inventoryTotal = inventoryEntries.reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
   function openNew() {
     setEditingId(null);
@@ -175,10 +178,10 @@ export default function CashMovements() {
         </form>
       </div>
 
-      <div className="card">
+      <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h3 style={{ margin: 0 }}>Harakatlar ro'yxati</h3>
-          <div style={{ fontWeight: 700, color: 'var(--red)' }}>Jami: {formatMoney(total)}</div>
+          <h3 style={{ margin: 0 }}>Kunlik xarajatlar</h3>
+          <div style={{ fontWeight: 700, color: 'var(--red)' }}>Jami: {formatMoney(manualTotal)}</div>
         </div>
 
         <table>
@@ -193,7 +196,7 @@ export default function CashMovements() {
             </tr>
           </thead>
           <tbody>
-            {entries.map((item) => (
+            {manualEntries.map((item) => (
               <tr key={item.id}>
                 <td>{formatDateTime(item.date_time)}</td>
                 <td style={{ color: 'var(--red)', fontWeight: 700 }}>{formatMoney(item.amount)}</td>
@@ -206,7 +209,42 @@ export default function CashMovements() {
                 </td>
               </tr>
             ))}
-            {entries.length === 0 && <tr><td colSpan={6} style={{ color: 'var(--text-dim)' }}>Kassa harakati yo'q</td></tr>}
+            {manualEntries.length === 0 && <tr><td colSpan={6} style={{ color: 'var(--text-dim)' }}>Kunlik xarajat yo'q</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h3 style={{ margin: 0 }}>📥 Mahsulot kirimlari (yuk)</h3>
+          <div style={{ fontWeight: 700, color: 'var(--red)' }}>Jami: {formatMoney(inventoryTotal)}</div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Sana</th>
+              <th>Miqdor</th>
+              <th>To'lov turi</th>
+              <th>Ta'rif</th>
+              <th>Qaydnoma</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {inventoryEntries.map((item) => (
+              <tr key={item.id}>
+                <td>{formatDateTime(item.date_time)}</td>
+                <td style={{ color: 'var(--red)', fontWeight: 700 }}>{formatMoney(item.amount)}</td>
+                <td>{item.payment_method === 'karta' ? '💳 Karta' : '💵 Naqd'}</td>
+                <td>{item.description || '-'}</td>
+                <td>{item.recorded_by || '-'}</td>
+                <td style={{ display: 'flex', gap: 6 }}>
+                  <button className="btn danger" onClick={() => handleDelete(item.id)}>O'chirish</button>
+                </td>
+              </tr>
+            ))}
+            {inventoryEntries.length === 0 && <tr><td colSpan={6} style={{ color: 'var(--text-dim)' }}>Mahsulot kirimi yo'q</td></tr>}
           </tbody>
         </table>
       </div>
