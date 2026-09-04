@@ -17,6 +17,7 @@ function emptyData() {
     cash_movements: [],
     supplier_debts: [],
     supplier_debt_payments: [],
+    meta: {},
     seq: { users: 0, products: 0, customers: 0, sales: 0, sale_items: 0, debt_payments: 0, cash_movements: 0, supplier_debts: 0, supplier_debt_payments: 0 },
   };
 }
@@ -42,6 +43,72 @@ function normalize(data) {
     sold_count: Number(product.sold_count ?? product.sales_count ?? 0) || 0,
     sales_count: Number(product.sales_count ?? product.sold_count ?? 0) || 0,
   }));
+
+  normalized.meta = { ...(data.meta || {}) };
+
+  // ---------------------------------------------------------------------
+  // (22) BIR MARTALIK MIGRATSIYA: har bir sotuvga "margin" (sof foyda:
+  // sotuv summasi − tan narx) va "debt_remaining" (hali to'lanmagan qarz
+  // qoldig'i, sotuv darajasida) maydonlarini qo'shamiz. Bular "kutilayotgan
+  // foyda"ni to'g'ri (faqat marja qismini) hisoblash uchun kerak — avval bu
+  // hisob noto'g'ri ravishda to'liq qarz summasini ko'rsatardi.
+  //
+  // Eski (bu maydonlarsiz) sotuvlar uchun: tan narxni mahsulotning joriy
+  // narxidan hisoblaymiz (tarixiy narx saqlanmagani uchun eng yaqin
+  // taxmin), so'ngra mavjud qarz to'lovlarini har bir mijoz bo'yicha FIFO
+  // tartibida (eng eski sotuvdan boshlab) taqsimlab, debt_remaining
+  // qoldig'ini aniqlaymiz. Bu migratsiya `meta.salesMarginMigratedV1`
+  // bayrog'i orqali faqat BIR MARTA ishga tushadi — aks holda keyingi
+  // qayta ishga tushirishlarda to'lovlar qayta-qayta ayirilib, hisobni
+  // buzib qo'yardi.
+  if (!normalized.meta.salesMarginMigratedV1) {
+    const productById = {};
+    for (const p of normalized.products) productById[p.id] = p;
+
+    for (const sale of normalized.sales) {
+      if (sale.margin === undefined || sale.cost_amount === undefined) {
+        const items = normalized.sale_items.filter((it) => it.sale_id === sale.id);
+        const costAmount = items.reduce((sum, it) => {
+          const product = productById[it.product_id];
+          const unitCost = Number(product?.costPrice ?? product?.purchase_price ?? 0) || 0;
+          return sum + unitCost * Number(it.quantity || 0);
+        }, 0);
+        sale.cost_amount = costAmount;
+        sale.margin = Number(sale.total_amount || 0) - costAmount;
+      }
+      if (sale.debt_remaining === undefined) {
+        sale.debt_remaining = Number(sale.debt_amount || 0);
+      }
+    }
+
+    const salesByCustomer = {};
+    for (const sale of normalized.sales) {
+      if (!sale.customer_id) continue;
+      if (!salesByCustomer[sale.customer_id]) salesByCustomer[sale.customer_id] = [];
+      salesByCustomer[sale.customer_id].push(sale);
+    }
+
+    const paidByCustomer = {};
+    for (const payment of normalized.debt_payments) {
+      const cid = payment.customer_id;
+      paidByCustomer[cid] = (paidByCustomer[cid] || 0) + Number(payment.amount || 0);
+    }
+
+    for (const [customerId, totalPaid] of Object.entries(paidByCustomer)) {
+      const customerSales = (salesByCustomer[customerId] || [])
+        .filter((s) => Number(s.debt_amount || 0) > 0)
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      let remaining = totalPaid;
+      for (const sale of customerSales) {
+        if (remaining <= 0) break;
+        const applied = Math.min(remaining, Number(sale.debt_remaining || 0));
+        sale.debt_remaining = Number(sale.debt_remaining || 0) - applied;
+        remaining -= applied;
+      }
+    }
+
+    normalized.meta.salesMarginMigratedV1 = true;
+  }
 
   return normalized;
 }
