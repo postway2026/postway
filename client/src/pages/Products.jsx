@@ -76,6 +76,18 @@ export default function Products() {
       min_quantity: Number(form.min_quantity ?? 2),
     };
 
+    // (23) Tan narx va sotish narxi tasodifan almashtirilib qo'yilishining
+    // oldini olish uchun ogohlantirish — bu haqiqatda amalda sodir bo'lgan
+    // (foyda hisobotida noto'g'ri katta zarar ko'rsatilgan edi).
+    if (payload.costPrice > 0 && payload.sale_price > 0 && payload.sale_price < payload.costPrice) {
+      const ok = confirm(
+        `Diqqat! Sotish narxi (${money(payload.sale_price)}) tan narxdan (${money(payload.costPrice)}) past.\n\n` +
+        `Ehtimol tan narx va sotish narxi joylari almashtirilib qo'yilgan bo'lishi mumkin. ` +
+        `Shunday davom etishga ishonchingiz komilmi?`
+      );
+      if (!ok) return;
+    }
+
     try {
       if (editingId) {
         await api.updateProduct(editingId, payload);
