@@ -174,9 +174,6 @@ router.get('/profit', authRequired, (req, res) => {
   const qarzSalesPaidNow = salesInPeriod
     .filter((s) => s.payment_type === 'qarz')
     .reduce((sum, s) => sum + Number(s.paid_amount || 0), 0);
-  const newDebtCreated = salesInPeriod
-    .filter((s) => s.payment_type === 'qarz')
-    .reduce((sum, s) => sum + Number(s.debt_amount || 0), 0);
   const debtCollectedInPeriod = (data.debt_payments || [])
     .filter((p) => {
       const d = new Date(p.created_at || 0);
@@ -186,7 +183,22 @@ router.get('/profit', authRequired, (req, res) => {
 
   const realizedRevenue = naqdKartaRevenue + qarzSalesPaidNow + debtCollectedInPeriod;
   const kassaFoyda = realizedRevenue - totalCost - totalExpenses;
-  const kutilayotganFoyda = newDebtCreated;
+
+  // (22) "Kutilayotgan foyda" — hali to'lanmagan qarzlar ichida "qulflangan"
+  // FOYDA (marja) qismi, qarzning to'liq summasi emas. Har bir sotuv o'z
+  // marjasini (margin) va qarz qoldig'ini (debt_remaining) saqlaydi;
+  // mijoz qarzni qisman to'lasa ham, mutanosib ravishda marja realizatsiya
+  // qilingan hisoblanadi (bu allaqachon debt_remaining orqali /pay
+  // endpointida hisobga olingan). Bu ko'rsatkich TANLANGAN DAVRGA
+  // BOG'LIQ EMAS — har doim joriy umumiy holatni ko'rsatadi.
+  const kutilayotganFoyda = (data.sales || []).reduce((sum, sale) => {
+    const debtRemaining = Number(sale.debt_remaining ?? sale.debt_amount ?? 0);
+    if (debtRemaining <= 0) return sum;
+    const totalAmount = Number(sale.total_amount || 0);
+    const margin = Number(sale.margin ?? 0);
+    if (totalAmount <= 0) return sum;
+    return sum + margin * (debtRemaining / totalAmount);
+  }, 0);
 
   // Eski nom (netProfit) muvofiqlik uchun endi "kassaFoyda" bilan bir xil qiymatni bildiradi.
   const netProfit = kassaFoyda;
