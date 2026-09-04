@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
 
 function money(n) {
-  return Number(n || 0).toLocaleString('uz-UZ') + " so'm";
+  return Math.round(Number(n || 0)).toLocaleString('uz-UZ') + " so'm";
 }
 
 export default function SupplierDebts() {
