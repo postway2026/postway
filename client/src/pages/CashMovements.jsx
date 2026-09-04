@@ -18,7 +18,7 @@ const emptyForm = {
 };
 
 function formatMoney(value) {
-  return Number(value || 0).toLocaleString('uz-UZ') + ' so\'m';
+  return Math.round(Number(value || 0)).toLocaleString('uz-UZ') + ' so\'m';
 }
 
 function formatDateTime(value) {
