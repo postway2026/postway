@@ -139,7 +139,12 @@ export default function Reports() {
                 <td>{s.customer_name || '—'}</td>
                 <td>{s.seller_name}</td>
                 <td><span className={`badge ${s.payment_type === 'qarz' ? 'red' : 'green'}`}>{s.payment_type}</span></td>
-                <td>{money(s.total_amount)}</td>
+                <td>
+                  {money(s.total_amount)}
+                  {Number(s.discount_amount) > 0 && (
+                    <div style={{ fontSize: 11, color: 'var(--red)' }}>Chegirma: -{money(s.discount_amount)}</div>
+                  )}
+                </td>
                 <td>
                   <button
                     className="btn danger"
