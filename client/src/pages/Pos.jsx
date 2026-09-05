@@ -292,16 +292,16 @@ export default function Pos() {
           <div className="form-row">
             <label>Umumiy chegirma (ixtiyoriy)</label>
             <div style={{ display: 'flex', gap: 8 }}>
-              <select style={{ flex: 1 }} value={discountType} onChange={(e) => setDiscountType(e.target.value)}>
+              <select style={{ width: 110, flexShrink: 0 }} value={discountType} onChange={(e) => setDiscountType(e.target.value)}>
                 <option value="none">Yo'q</option>
                 <option value="percent">Foiz (%)</option>
-                <option value="fixed">Aniq summa (so'm)</option>
+                <option value="fixed">Summa</option>
               </select>
               {discountType !== 'none' && (
                 <input
                   type="number"
-                  style={{ width: 100 }}
-                  placeholder={discountType === 'percent' ? '%' : "so'm"}
+                  style={{ flex: 1, minWidth: 0 }}
+                  placeholder={discountType === 'percent' ? 'Masalan: 10' : "Masalan: 20000"}
                   value={discountValue}
                   onChange={(e) => setDiscountValue(e.target.value)}
                 />
