@@ -5,7 +5,7 @@ import { authRequired } from '../middleware/auth.js';
 const router = Router();
 
 router.post('/', authRequired, (req, res) => {
-  const { customer_id, items, paid_amount, payment_type } = req.body;
+  const { customer_id, items, paid_amount, payment_type, discount_type, discount_value } = req.body;
   if (!items || items.length === 0) return res.status(400).json({ error: 'Mahsulot tanlanmagan' });
 
   const data = readData();
@@ -18,7 +18,22 @@ router.post('/', authRequired, (req, res) => {
     }
   }
 
-  const total_amount = items.reduce((sum, it) => sum + it.quantity * it.unit_price, 0);
+  // (2) Tovar darajasidagi chegirma allaqachon `unit_price` ichida keladi
+  // (frontend savatda narxni to'g'ridan-to'g'ri tahrirlaydi). Bu yerda
+  // qo'shimcha ravishda umumiy chek chegirmasini (foiz yoki aniq summa)
+  // qo'llaymiz — subtotal_amount dan ayirib, yakuniy total_amount ni
+  // hosil qilamiz. Chegirma hech qachon subtotal'dan oshib, manfiy
+  // summa hosil qilmasligi uchun cheklanadi.
+  const subtotal_amount = items.reduce((sum, it) => sum + it.quantity * it.unit_price, 0);
+  let discount_amount = 0;
+  if (discount_type === 'percent') {
+    discount_amount = (subtotal_amount * (Number(discount_value) || 0)) / 100;
+  } else if (discount_type === 'fixed') {
+    discount_amount = Number(discount_value) || 0;
+  }
+  discount_amount = Math.min(subtotal_amount, Math.max(0, discount_amount));
+  const total_amount = subtotal_amount - discount_amount;
+
   const paid = paid_amount ?? total_amount;
   const debt_amount = Math.max(0, total_amount - paid);
 
@@ -26,6 +41,9 @@ router.post('/', authRequired, (req, res) => {
   // keyinchalik narxi o'zgarsa ham, shu sotuvning marjasi (foydasi)
   // o'zgarmay qoladi. debt_remaining boshida to'liq qarz summasiga teng,
   // mijoz qarzni to'lagan sari (customers.js/:id/pay) kamayib boradi.
+  // Chegirma (tovar yoki chek darajasida) total_amount orqali marjaga
+  // avtomatik ta'sir qiladi — tan narx (cost_amount) o'zgarmaydi, faqat
+  // foyda kamayadi, bu to'g'ri: chegirma foydadan "yeydi", tan narxdan emas.
   const cost_amount = items.reduce((sum, it) => {
     const product = data.products.find((pp) => pp.id == it.product_id);
     const unitCost = Number(product?.costPrice ?? product?.purchase_price ?? 0) || 0;
@@ -38,6 +56,10 @@ router.post('/', authRequired, (req, res) => {
     id: saleId,
     customer_id: customer_id || null,
     user_id: req.user.id,
+    subtotal_amount,
+    discount_type: discount_amount > 0 ? (discount_type === 'percent' ? 'percent' : 'fixed') : null,
+    discount_value: discount_amount > 0 ? Number(discount_value) || 0 : 0,
+    discount_amount,
     total_amount,
     paid_amount: paid,
     debt_amount,
@@ -66,7 +88,7 @@ router.post('/', authRequired, (req, res) => {
   }
 
   writeData(data);
-  res.json({ id: saleId, total_amount, paid_amount: paid, debt_amount });
+  res.json({ id: saleId, subtotal_amount, discount_amount, total_amount, paid_amount: paid, debt_amount });
 });
 
 router.get('/', authRequired, (req, res) => {
