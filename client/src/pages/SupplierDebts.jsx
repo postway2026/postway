@@ -9,6 +9,7 @@ export default function SupplierDebts() {
   const [suppliers, setSuppliers] = useState([]);
   const [payModal, setPayModal] = useState(null);
   const [payAmount, setPayAmount] = useState('');
+  const [payMethod, setPayMethod] = useState('naqd');
   const [detail, setDetail] = useState(null);
 
   function load() {
@@ -23,10 +24,29 @@ export default function SupplierDebts() {
 
   async function handlePay(e) {
     e.preventDefault();
-    await api.paySupplierDebt({ supplier_name: payModal.supplier_name, amount: +payAmount });
+    await api.paySupplierDebt({ supplier_name: payModal.supplier_name, amount: +payAmount, payment_method: payMethod });
     setPayModal(null);
     setPayAmount('');
+    setPayMethod('naqd');
     load();
+  }
+
+  // (28) Tugma bir necha marta bosilib, xato to'lov (masalan bir xil
+  // to'lov 6 marta) yuborilib qo'yilishining oldini olish uchun — tarixdan
+  // xato to'lovni bekor qilish imkoniyati. Yozuv o'chirilmaydi, faqat
+  // "bekor qilingan" deb belgilanadi, qarz avtomatik tiklanadi.
+  async function handleCancelPayment(paymentId) {
+    if (!confirm("Bu to'lovni bekor qilishni xohlaysizmi? Qarz miqdori avtomatik tiklanadi.")) return;
+    try {
+      await api.cancelSupplierDebtPayment(paymentId);
+      if (detail) {
+        const refreshed = await api.supplierDebtEntries(detail.supplier_name);
+        setDetail(refreshed);
+      }
+      load();
+    } catch (err) {
+      alert(err.message || 'Bekor qilishda xatolik yuz berdi');
+    }
   }
 
   return (
@@ -69,6 +89,13 @@ export default function SupplierDebts() {
             <h3 style={{ marginTop: 0 }}>{payModal.supplier_name} — to'lov qilish</h3>
             <div className="form-row"><label>Qoldiq qarz: {money(payModal.balance)}</label></div>
             <div className="form-row"><label>To'lov summasi</label><input required type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} /></div>
+            <div className="form-row">
+              <label>Qanday to'landi?</label>
+              <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
+                <option value="naqd">💵 Naqd (kassadan ayiriladi)</option>
+                <option value="karta">💳 Karta (kassadan ayiriladi)</option>
+              </select>
+            </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button type="button" className="btn secondary" style={{ flex: 1 }} onClick={() => setPayModal(null)}>Bekor qilish</button>
               <button className="btn" style={{ flex: 1 }}>Tasdiqlash</button>
@@ -98,12 +125,24 @@ export default function SupplierDebts() {
             </table>
             <h4>To'lovlar</h4>
             <table>
-              <thead><tr><th>Sana</th><th>Summa</th></tr></thead>
+              <thead><tr><th>Sana</th><th>Summa</th><th>Turi</th><th>Holati</th><th></th></tr></thead>
               <tbody>
                 {detail.payments.map((p) => (
-                  <tr key={p.id}><td>{new Date(p.created_at).toLocaleDateString('uz-UZ')}</td><td>{money(p.amount)}</td></tr>
+                  <tr key={p.id} style={p.cancelled ? { opacity: 0.5, textDecoration: 'line-through' } : undefined}>
+                    <td>{new Date(p.created_at).toLocaleDateString('uz-UZ')}</td>
+                    <td>{money(p.amount)}</td>
+                    <td>{p.payment_method === 'karta' ? '💳 Karta' : '💵 Naqd'}</td>
+                    <td>{p.cancelled ? 'Bekor qilingan' : 'Faol'}</td>
+                    <td>
+                      {!p.cancelled && (
+                        <button className="btn danger" style={{ textDecoration: 'none' }} onClick={() => handleCancelPayment(p.id)}>
+                          Bekor qilish
+                        </button>
+                      )}
+                    </td>
+                  </tr>
                 ))}
-                {detail.payments.length === 0 && <tr><td colSpan={2} style={{ color: 'var(--text-dim)' }}>To'lovlar yo'q</td></tr>}
+                {detail.payments.length === 0 && <tr><td colSpan={5} style={{ color: 'var(--text-dim)' }}>To'lovlar yo'q</td></tr>}
               </tbody>
             </table>
             <button className="btn secondary" style={{ width: '100%', marginTop: 10 }} onClick={() => setDetail(null)}>Yopish</button>
