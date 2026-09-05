@@ -49,20 +49,27 @@ router.get('/dashboard', authRequired, (req, res) => {
   // (17) Kassada real qancha naqt/karta pul borligi — barcha davr bo'yicha:
   // savdodan kelgan pul + qarz to'lovlaridan kelgan pul − xarajatlar
   // (shu jumladan mahsulot kirimiga ketgan pul, chunki bu ham kassadan
-  // haqiqatda chiqib ketgan pul).
+  // haqiqatda chiqib ketgan pul) − ta'minotchilarga qilingan to'lovlar.
+  // (28) Ta'minotchiga to'lov — kassadan chiqadigan haqiqiy pul, shuning
+  // uchun bu ham cashOut/cardOut hisobiga kiradi; bekor qilingan
+  // to'lovlar (cancelled: true) esa hisobga olinmaydi.
   const allSales = currentSales;
   const allCashMovements = Array.isArray(data.cash_movements) ? data.cash_movements : [];
   const allDebtPayments = Array.isArray(data.debt_payments) ? data.debt_payments : [];
+  const allSupplierPayments = (Array.isArray(data.supplier_debt_payments) ? data.supplier_debt_payments : [])
+    .filter((p) => !p.cancelled);
 
   const cashIn = allSales.filter((s) => s.payment_type === 'naqd').reduce((s, x) => s + Number(x.total_amount || 0), 0)
     + allSales.filter((s) => s.payment_type === 'qarz').reduce((s, x) => s + Number(x.paid_amount || 0), 0)
     + allDebtPayments.filter((p) => (p.payment_method || 'naqd') === 'naqd').reduce((s, p) => s + Number(p.amount || 0), 0);
-  const cashOut = allCashMovements.filter((m) => (m.payment_method || 'naqd') === 'naqd').reduce((s, m) => s + Number(m.amount || 0), 0);
+  const cashOut = allCashMovements.filter((m) => (m.payment_method || 'naqd') === 'naqd').reduce((s, m) => s + Number(m.amount || 0), 0)
+    + allSupplierPayments.filter((p) => (p.payment_method || 'naqd') === 'naqd').reduce((s, p) => s + Number(p.amount || 0), 0);
   const cashOnHand = cashIn - cashOut;
 
   const cardIn = allSales.filter((s) => s.payment_type === 'karta').reduce((s, x) => s + Number(x.total_amount || 0), 0)
     + allDebtPayments.filter((p) => p.payment_method === 'karta').reduce((s, p) => s + Number(p.amount || 0), 0);
-  const cardOut = allCashMovements.filter((m) => m.payment_method === 'karta').reduce((s, m) => s + Number(m.amount || 0), 0);
+  const cardOut = allCashMovements.filter((m) => m.payment_method === 'karta').reduce((s, m) => s + Number(m.amount || 0), 0)
+    + allSupplierPayments.filter((p) => p.payment_method === 'karta').reduce((s, p) => s + Number(p.amount || 0), 0);
   const cardOnHand = cardIn - cardOut;
 
   res.json({
