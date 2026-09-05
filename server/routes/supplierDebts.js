@@ -9,8 +9,8 @@ const router = Router();
 
 function summarize(data) {
   const debts = data.supplier_debts || [];
-  const payments = data.supplier_debt_payments || [];
-  const names = new Set([...debts.map((d) => d.supplier_name), ...payments.map((p) => p.supplier_name)]);
+  const payments = (data.supplier_debt_payments || []).filter((p) => !p.cancelled);
+  const names = new Set([...debts.map((d) => d.supplier_name), ...(data.supplier_debt_payments || []).map((p) => p.supplier_name)]);
 
   return [...names].map((name) => {
     const totalDebt = debts.filter((d) => d.supplier_name === name).reduce((s, d) => s + Number(d.amount || 0), 0);
@@ -37,7 +37,7 @@ router.get('/:supplier_name/entries', authRequired, (req, res) => {
 });
 
 router.post('/pay', authRequired, (req, res) => {
-  const { supplier_name, amount, note } = req.body;
+  const { supplier_name, amount, note, payment_method } = req.body;
   if (!supplier_name || !amount || amount <= 0) {
     return res.status(400).json({ error: "Ta'minotchi va summani to'g'ri kiriting" });
   }
@@ -49,8 +49,28 @@ router.post('/pay', authRequired, (req, res) => {
     supplier_name,
     amount: Number(amount) || 0,
     note: note || '',
+    payment_method: payment_method === 'karta' ? 'karta' : 'naqd',
+    cancelled: false,
     created_at: new Date().toISOString(),
   });
+  writeData(data);
+  res.json({ success: true });
+});
+
+// (28) To'lovni bekor qilish — tugma bir necha marta bosilib, xato to'lov
+// yuborilgan holatlar uchun (masalan bitta to'lov 6 marta yuborilib,
+// hisob manfiy bo'lib qolgan voqea sodir bo'lgan edi). Yozuvni O'CHIRMAYMIZ
+// — audit izi saqlanishi uchun faqat "cancelled: true" deb belgilaymiz.
+// Bekor qilingan to'lov summarize() da hisobga olinmaydi, ya'ni qarz
+// avtomatik tiklanadi.
+router.post('/payments/:id/cancel', authRequired, (req, res) => {
+  const data = readData();
+  const id = Number(req.params.id);
+  const payment = (data.supplier_debt_payments || []).find((p) => Number(p.id) === id);
+  if (!payment) return res.status(404).json({ error: "To'lov topilmadi" });
+  if (payment.cancelled) return res.status(400).json({ error: 'Bu to\'lov allaqachon bekor qilingan' });
+  payment.cancelled = true;
+  payment.cancelled_at = new Date().toISOString();
   writeData(data);
   res.json({ success: true });
 });
