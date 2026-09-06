@@ -58,12 +58,16 @@ router.post('/', authRequired, roleRequired('admin', 'omborchi'), (req, res) => 
   const qty = parseNumber(quantity);
   const normalizedCostPrice = parseNumber(costPrice ?? purchase_price);
 
+  // (31) Endi to'lov turidan qat'iy nazar (naqd, karta yoki nasiya) —
+  // har qanday kirim ta'minotchiga bog'lanadi, shunda "qaysi tovar qaysi
+  // ta'minotchidan kelgani" har doim aniq bo'ladi (avval bu faqat nasiya
+  // uchun talab qilinardi).
   if (qty > 0 && normalizedCostPrice > 0) {
     if (!['naqd', 'karta', 'nasiya'].includes(payment_type)) {
       return res.status(400).json({ error: "To'lov turini tanlang" });
     }
-    if (payment_type === 'nasiya' && !supplier_name) {
-      return res.status(400).json({ error: "Nasiya uchun ta'minotchi nomini kiriting" });
+    if (!supplier_name) {
+      return res.status(400).json({ error: "Ta'minotchi nomini kiriting" });
     }
   }
 
@@ -91,35 +95,40 @@ router.post('/', authRequired, roleRequired('admin', 'omborchi'), (req, res) => 
 
   if (qty > 0 && normalizedCostPrice > 0) {
     const totalAmount = qty * normalizedCostPrice;
-    if (payment_type === 'nasiya') {
-      if (!Array.isArray(data.supplier_debts)) data.supplier_debts = [];
-      const debtId = nextId(data, 'supplier_debts');
-      data.supplier_debts.push({
-        id: debtId,
-        supplier_name,
-        amount: totalAmount,
-        product_id: id,
-        product_name: newProduct.name,
-        quantity: qty,
-        note: note || '',
-        created_at: now,
-      });
-    } else {
+    if (!Array.isArray(data.supplier_debts)) data.supplier_debts = [];
+    const debtId = nextId(data, 'supplier_debts');
+    const entry = {
+      id: debtId,
+      supplier_name,
+      amount: totalAmount,
+      product_id: id,
+      product_name: newProduct.name,
+      quantity: qty,
+      unit_cost: normalizedCostPrice,
+      payment_type,
+      note: note || '',
+      cash_movement_id: null,
+      created_at: now,
+    };
+    if (payment_type !== 'nasiya') {
       if (!Array.isArray(data.cash_movements)) data.cash_movements = [];
       const movementId = nextId(data, 'cash_movements');
       data.cash_movements.push({
         id: movementId,
         amount: totalAmount,
         category: 'Mahsulot kirim (yuk)',
-        description: `${newProduct.name} — ${qty} dona (yangi mahsulot)`,
+        description: `${newProduct.name} — ${qty} dona (yangi mahsulot, ${supplier_name})`,
         recorded_by: req.user?.full_name || "Noma'lum",
         date_time: now,
         created_at: now,
         updated_at: now,
         payment_method: payment_type,
         is_inventory: true,
+        supplier_debt_id: debtId,
       });
+      entry.cash_movement_id = movementId;
     }
+    data.supplier_debts.push(entry);
   }
 
   writeData(data);
@@ -174,8 +183,8 @@ router.post('/:id/kirim', authRequired, roleRequired('admin', 'omborchi'), (req,
   if (!['naqd', 'karta', 'nasiya'].includes(payment_type)) {
     return res.status(400).json({ error: "To'lov turini tanlang" });
   }
-  if (payment_type === 'nasiya' && !supplier_name) {
-    return res.status(400).json({ error: 'Nasiya uchun ta\'minotchi nomini kiriting' });
+  if (!supplier_name) {
+    return res.status(400).json({ error: "Ta'minotchi nomini kiriting" });
   }
 
   const data = readData();
@@ -193,35 +202,41 @@ router.post('/:id/kirim', authRequired, roleRequired('admin', 'omborchi'), (req,
     updated_at: now,
   };
 
-  if (payment_type === 'nasiya') {
-    if (!Array.isArray(data.supplier_debts)) data.supplier_debts = [];
-    const id = nextId(data, 'supplier_debts');
-    data.supplier_debts.push({
-      id,
-      supplier_name,
-      amount: totalAmount,
-      product_id: data.products[idx].id,
-      product_name: data.products[idx].name,
-      quantity: qty,
-      note: note || '',
-      created_at: now,
-    });
-  } else {
+  if (!Array.isArray(data.supplier_debts)) data.supplier_debts = [];
+  const debtId = nextId(data, 'supplier_debts');
+  const entry = {
+    id: debtId,
+    supplier_name,
+    amount: totalAmount,
+    product_id: data.products[idx].id,
+    product_name: data.products[idx].name,
+    quantity: qty,
+    unit_cost: cost,
+    payment_type,
+    note: note || '',
+    cash_movement_id: null,
+    created_at: now,
+  };
+
+  if (payment_type !== 'nasiya') {
     if (!Array.isArray(data.cash_movements)) data.cash_movements = [];
-    const id = nextId(data, 'cash_movements');
+    const movementId = nextId(data, 'cash_movements');
     data.cash_movements.push({
-      id,
+      id: movementId,
       amount: totalAmount,
       category: 'Mahsulot kirim (yuk)',
-      description: `${data.products[idx].name} — ${qty} dona`,
+      description: `${data.products[idx].name} — ${qty} dona (${supplier_name})`,
       recorded_by: req.user?.full_name || "Noma'lum",
       date_time: now,
       created_at: now,
       updated_at: now,
       payment_method: payment_type,
       is_inventory: true,
+      supplier_debt_id: debtId,
     });
+    entry.cash_movement_id = movementId;
   }
+  data.supplier_debts.push(entry);
 
   writeData(data);
   res.json({ success: true, product: normalizeProduct(data.products[idx]) });
