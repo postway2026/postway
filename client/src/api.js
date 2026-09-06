@@ -45,6 +45,9 @@ export const api = {
   paySupplierDebt: (payload) => request('/supplier-debts/pay', { method: 'POST', body: JSON.stringify(payload) }),
   cancelSupplierDebtPayment: (id) => request(`/supplier-debts/payments/${id}/cancel`, { method: 'POST' }),
   addSupplierOldDebt: (payload) => request('/supplier-debts/debt', { method: 'POST', body: JSON.stringify(payload) }),
+  addSupplierKirim: (supplierName, payload) => request(`/supplier-debts/${encodeURIComponent(supplierName)}/kirim`, { method: 'POST', body: JSON.stringify(payload) }),
+  updateSupplierDebtEntry: (id, payload) => request(`/supplier-debts/debt/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteSupplierDebtEntry: (id) => request(`/supplier-debts/debt/${id}`, { method: 'DELETE' }),
 
   listSales: (from, to) => request(`/sales${from && to ? `?from=${from}&to=${to}` : ''}`),
   createSale: (payload) => request('/sales', { method: 'POST', body: JSON.stringify(payload) }),
