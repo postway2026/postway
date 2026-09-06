@@ -88,7 +88,7 @@ export default function SupplierDebts() {
           <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handlePay}>
             <h3 style={{ marginTop: 0 }}>{payModal.supplier_name} — to'lov qilish</h3>
             <div className="form-row"><label>Qoldiq qarz: {money(payModal.balance)}</label></div>
-            <div className="form-row"><label>To'lov summasi</label><input required type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} /></div>
+            <div className="form-row"><label>To'lov summasi</label><input required type="number" value={payAmount} onFocus={(e) => e.target.select()} onChange={(e) => setPayAmount(e.target.value)} /></div>
             <div className="form-row">
               <label>Qanday to'landi?</label>
               <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
