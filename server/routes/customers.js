@@ -84,6 +84,48 @@ router.post('/:id/pay', authRequired, (req, res) => {
   res.json({ success: true });
 });
 
+// (30) Ilovadan oldingi eski qarzlarni qo'lda kiritish. Bu haqiqiy sotuv
+// emas, shuning uchun "sintetik" (mahsulotsiz) sotuv yozuvi sifatida
+// yaratiladi: margin=0 va cost_amount=0 — ya'ni bu qarz hech qachon
+// "kutilayotgan foyda"ga qo'shilmaydi (chunki tan narxi noma'lum, uni
+// taxmin qilish xato hisobotga olib kelishi mumkin). Faqat qarz sifatida
+// kuzatiladi, to'langanda esa oddiy naqt/karta tushumi hisoblanadi.
+// `date` maydoni orqali eski sana tanlanishi mumkin, shunda bu "Jami
+// savdo" statistikasida noto'g'ri ravishda "bugungi savdo" bo'lib
+// ko'rinmaydi.
+router.post('/:id/old-debt', authRequired, (req, res) => {
+  const { amount, note, date } = req.body;
+  if (!amount || amount <= 0) return res.status(400).json({ error: "Summani to'g'ri kiriting" });
+  const data = readData();
+  const customerId = +req.params.id;
+  const customer = data.customers.find((c) => c.id === customerId);
+  if (!customer) return res.status(404).json({ error: 'Mijoz topilmadi' });
+
+  const created_at = date ? new Date(date).toISOString() : new Date().toISOString();
+  const saleId = nextId(data, 'sales');
+  data.sales.push({
+    id: saleId,
+    customer_id: customerId,
+    user_id: req.user.id,
+    subtotal_amount: Number(amount),
+    discount_type: null,
+    discount_value: 0,
+    discount_amount: 0,
+    total_amount: Number(amount),
+    paid_amount: 0,
+    debt_amount: Number(amount),
+    debt_remaining: Number(amount),
+    cost_amount: 0,
+    margin: 0,
+    is_manual_debt: true,
+    note: note || "Ilovadan oldingi eski qarz",
+    payment_type: 'qarz',
+    created_at,
+  });
+  writeData(data);
+  res.json({ success: true, id: saleId });
+});
+
 router.delete('/:id', authRequired, roleRequired('admin'), (req, res) => {
   const data = readData();
   const customerId = Number(req.params.id);
