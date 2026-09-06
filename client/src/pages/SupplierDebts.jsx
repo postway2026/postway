@@ -5,7 +5,19 @@ function money(n) {
   return Math.round(Number(n || 0)).toLocaleString('uz-UZ') + " so'm";
 }
 
-const emptyKirimForm = { product_id: '', new_product_name: '', quantity: '', unit_cost: '', payment_type: 'naqd', note: '' };
+const emptyKirimForm = {
+  product_id: '',
+  new_product_name: '',
+  new_product_brand: '',
+  new_product_part_type: 'original',
+  new_product_car_models: '',
+  new_product_sale_price: '',
+  new_product_min_quantity: 2,
+  quantity: '',
+  unit_cost: '',
+  payment_type: 'naqd',
+  note: '',
+};
 
 export default function SupplierDebts() {
   const [suppliers, setSuppliers] = useState([]);
@@ -91,10 +103,26 @@ export default function SupplierDebts() {
   // turidan qat'iy nazar, aynan shu ta'minotchi tarixida saqlanadi.
   async function handleAddKirim(e) {
     e.preventDefault();
+    if (kirimUseNew) {
+      const salePrice = Number(kirimForm.new_product_sale_price) || 0;
+      const costPrice = Number(kirimForm.unit_cost) || 0;
+      if (salePrice > 0 && costPrice > 0 && salePrice < costPrice) {
+        const ok = confirm(
+          `Diqqat! Sotish narxi (${money(salePrice)}) tan narxdan (${money(costPrice)}) past.\n\n` +
+          `Shunday davom etishga ishonchingiz komilmi?`
+        );
+        if (!ok) return;
+      }
+    }
     try {
       await api.addSupplierKirim(detail.supplier_name, {
         product_id: kirimUseNew ? null : kirimForm.product_id || null,
         new_product_name: kirimUseNew ? kirimForm.new_product_name : null,
+        new_product_brand: kirimUseNew ? kirimForm.new_product_brand : undefined,
+        new_product_part_type: kirimUseNew ? kirimForm.new_product_part_type : undefined,
+        new_product_car_models: kirimUseNew ? kirimForm.new_product_car_models : undefined,
+        new_product_sale_price: kirimUseNew ? +kirimForm.new_product_sale_price : undefined,
+        new_product_min_quantity: kirimUseNew ? +kirimForm.new_product_min_quantity : undefined,
         quantity: +kirimForm.quantity,
         unit_cost: +kirimForm.unit_cost,
         payment_type: kirimForm.payment_type,
@@ -315,10 +343,35 @@ export default function SupplierDebts() {
             </div>
 
             {kirimUseNew ? (
-              <div className="form-row">
-                <label>Mahsulot nomi *</label>
-                <input required value={kirimForm.new_product_name} onChange={(e) => setKirimForm({ ...kirimForm, new_product_name: e.target.value })} />
-              </div>
+              <>
+                <div className="form-row">
+                  <label>Mahsulot nomi *</label>
+                  <input required value={kirimForm.new_product_name} onChange={(e) => setKirimForm({ ...kirimForm, new_product_name: e.target.value })} />
+                </div>
+                <div className="form-row">
+                  <label>Brend</label>
+                  <input value={kirimForm.new_product_brand} onChange={(e) => setKirimForm({ ...kirimForm, new_product_brand: e.target.value })} />
+                </div>
+                <div className="form-row">
+                  <label>Mos mashina modellari</label>
+                  <input value={kirimForm.new_product_car_models} onChange={(e) => setKirimForm({ ...kirimForm, new_product_car_models: e.target.value })} placeholder="masalan: Nexia, Cobalt, Malibu" />
+                </div>
+                <div className="form-row">
+                  <label>Turi</label>
+                  <select value={kirimForm.new_product_part_type} onChange={(e) => setKirimForm({ ...kirimForm, new_product_part_type: e.target.value })}>
+                    <option value="original">Original</option>
+                    <option value="ishlatilgan">Ishlatilgan</option>
+                  </select>
+                </div>
+                <div className="form-row">
+                  <label>Sotish narxi *</label>
+                  <input required type="number" value={kirimForm.new_product_sale_price} onFocus={(e) => e.target.select()} onChange={(e) => setKirimForm({ ...kirimForm, new_product_sale_price: e.target.value })} />
+                </div>
+                <div className="form-row">
+                  <label>Minimal qoldiq (ogohlantirish)</label>
+                  <input type="number" value={kirimForm.new_product_min_quantity} onFocus={(e) => e.target.select()} onChange={(e) => setKirimForm({ ...kirimForm, new_product_min_quantity: e.target.value })} />
+                </div>
+              </>
             ) : (
               <div className="form-row">
                 <label>Mahsulot *</label>
