@@ -36,6 +36,30 @@ router.get('/:supplier_name/entries', authRequired, (req, res) => {
   res.json({ supplier_name: name, debts, payments });
 });
 
+// (30) Ilovadan oldingi eski ta'minotchi qarzlarini qo'lda kiritish —
+// mahsulot xaridiga bog'liq bo'lmagan, alohida qarz yozuvi sifatida.
+router.post('/debt', authRequired, (req, res) => {
+  const { supplier_name, amount, note, date } = req.body;
+  if (!supplier_name || !amount || amount <= 0) {
+    return res.status(400).json({ error: "Ta'minotchi va summani to'g'ri kiriting" });
+  }
+  const data = readData();
+  if (!Array.isArray(data.supplier_debts)) data.supplier_debts = [];
+  const id = nextId(data, 'supplier_debts');
+  data.supplier_debts.push({
+    id,
+    supplier_name,
+    amount: Number(amount) || 0,
+    product_id: null,
+    product_name: null,
+    quantity: null,
+    note: note || "Ilovadan oldingi eski qarz",
+    created_at: date ? new Date(date).toISOString() : new Date().toISOString(),
+  });
+  writeData(data);
+  res.json({ success: true, id });
+});
+
 router.post('/pay', authRequired, (req, res) => {
   const { supplier_name, amount, note, payment_method } = req.body;
   if (!supplier_name || !amount || amount <= 0) {
