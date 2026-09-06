@@ -22,6 +22,7 @@ export default function Products() {
   const [showCostPrices, setShowCostPrices] = useState(false);
   const [kirimProduct, setKirimProduct] = useState(null);
   const [kirimForm, setKirimForm] = useState({ quantity: '', unit_cost: '', payment_type: 'naqd', supplier_name: '', note: '' });
+  const [supplierNames, setSupplierNames] = useState([]);
   const { user } = useAuth();
   const canEdit = user.role === 'admin' || user.role === 'omborchi';
 
@@ -30,6 +31,11 @@ export default function Products() {
   }
 
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    // (31) Ta'minotchi nomi kiritilganda mavjud nomlardan avtomatik
+    // taklif (autocomplete) chiqishi uchun.
+    api.listSupplierDebts().then((rows) => setSupplierNames(rows.map((r) => r.supplier_name))).catch(() => {});
+  }, []);
 
   function openKirim(p) {
     setKirimProduct(p);
@@ -217,12 +223,10 @@ export default function Products() {
                     <option value="nasiya">📒 Nasiya (ta'minotchiga qarz yoziladi)</option>
                   </select>
                 </div>
-                {form.payment_type === 'nasiya' && (
-                  <div className="form-row">
-                    <label>Ta'minotchi nomi *</label>
-                    <input required value={form.supplier_name} onChange={(e) => setForm({ ...form, supplier_name: e.target.value })} placeholder="masalan: Mavlon aka, Timsoll" />
-                  </div>
-                )}
+                <div className="form-row">
+                  <label>Ta'minotchi nomi *</label>
+                  <input required list="supplier-names-list" value={form.supplier_name} onChange={(e) => setForm({ ...form, supplier_name: e.target.value })} placeholder="masalan: Mavlon aka, Timsoll" />
+                </div>
                 <div style={{ fontWeight: 700, marginBottom: 4, color: 'var(--text-dim)', fontSize: 13 }}>
                   Jami: {money(Number(form.quantity || 0) * Number(form.costPrice ?? form.purchase_price ?? 0))}
                 </div>
@@ -258,12 +262,10 @@ export default function Products() {
                 <option value="nasiya">📒 Nasiya (ta'minotchiga qarz yoziladi)</option>
               </select>
             </div>
-            {kirimForm.payment_type === 'nasiya' && (
-              <div className="form-row">
-                <label>Ta'minotchi nomi *</label>
-                <input required value={kirimForm.supplier_name} onChange={(e) => setKirimForm({ ...kirimForm, supplier_name: e.target.value })} placeholder="masalan: Mavlon aka, Timsoll" />
-              </div>
-            )}
+            <div className="form-row">
+              <label>Ta'minotchi nomi *</label>
+              <input required list="supplier-names-list" value={kirimForm.supplier_name} onChange={(e) => setKirimForm({ ...kirimForm, supplier_name: e.target.value })} placeholder="masalan: Mavlon aka, Timsoll" />
+            </div>
             <div className="form-row">
               <label>Izoh</label>
               <input value={kirimForm.note} onChange={(e) => setKirimForm({ ...kirimForm, note: e.target.value })} />
@@ -278,6 +280,10 @@ export default function Products() {
           </form>
         </div>
       )}
+
+      <datalist id="supplier-names-list">
+        {supplierNames.map((name) => <option key={name} value={name} />)}
+      </datalist>
     </div>
   );
 }
