@@ -107,7 +107,7 @@ export default function Customers() {
             <div className="form-row">
               <label>To'lov summasi</label>
               <div style={{ display: 'flex', gap: 8 }}>
-                <input required type="number" style={{ flex: 1 }} value={payAmount} onChange={(e) => setPayAmount(e.target.value)} />
+                <input required type="number" style={{ flex: 1 }} value={payAmount} onFocus={(e) => e.target.select()} onChange={(e) => setPayAmount(e.target.value)} />
                 <button type="button" className="btn secondary" onClick={() => setPayAmount(String(payModal.current_debt))}>Jami (to'liq)</button>
               </div>
             </div>
