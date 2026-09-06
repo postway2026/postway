@@ -60,7 +60,7 @@ router.get('/:supplier_name/entries', authRequired, (req, res) => {
 // uchun (avvalgi tizimda faqat nasiya kirimlar ta'minotchiga bog'lanardi).
 router.post('/:supplier_name/kirim', authRequired, (req, res) => {
   const supplier_name = decodeURIComponent(req.params.supplier_name);
-  const { product_id, new_product_name, quantity, unit_cost, payment_type, note } = req.body;
+  const { product_id, new_product_name, new_product_brand, new_product_part_type, new_product_car_models, new_product_sale_price, new_product_min_quantity, quantity, unit_cost, payment_type, note } = req.body;
   const qty = Number(quantity) || 0;
   const cost = Number(unit_cost) || 0;
 
@@ -85,21 +85,26 @@ router.post('/:supplier_name/kirim', authRequired, (req, res) => {
     product.purchase_price = cost;
     product.updated_at = now;
   } else {
+    // (31) Yangi mahsulot shu yerning o'zida TO'LIQ ma'lumot bilan
+    // yaratiladi (Mahsulotlar sahifasidagi "Yangi mahsulot" formasi bilan
+    // bir xil maydonlar) — shunda keyinchalik alohida tahrirlashga hojat
+    // qolmaydi va sotish narxi 0 bo'lib qolib, sotib bo'lmay qolish xatosi
+    // oldini oladi.
     const id = nextId(data, 'products');
     product = {
       id,
       name: new_product_name,
-      brand: '',
+      brand: new_product_brand || '',
       category: '',
-      part_type: 'original',
+      part_type: new_product_part_type || 'original',
       costPrice: cost,
       purchase_price: cost,
       sold_count: 0,
       sales_count: 0,
-      sale_price: 0,
+      sale_price: Number(new_product_sale_price) || 0,
       quantity: qty,
-      min_quantity: 2,
-      car_models: '',
+      min_quantity: Number(new_product_min_quantity ?? 2) || 2,
+      car_models: new_product_car_models || '',
       created_at: now,
       updated_at: now,
     };
