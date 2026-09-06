@@ -38,11 +38,13 @@ export const api = {
   createCustomer: (payload) => request('/customers', { method: 'POST', body: JSON.stringify(payload) }),
   deleteCustomer: (id) => request(`/customers/${id}`, { method: 'DELETE' }),
   payDebt: (id, payload) => request(`/customers/${id}/pay`, { method: 'POST', body: JSON.stringify(payload) }),
+  addOldDebt: (id, payload) => request(`/customers/${id}/old-debt`, { method: 'POST', body: JSON.stringify(payload) }),
 
   listSupplierDebts: () => request('/supplier-debts'),
   supplierDebtEntries: (name) => request(`/supplier-debts/${encodeURIComponent(name)}/entries`),
   paySupplierDebt: (payload) => request('/supplier-debts/pay', { method: 'POST', body: JSON.stringify(payload) }),
   cancelSupplierDebtPayment: (id) => request(`/supplier-debts/payments/${id}/cancel`, { method: 'POST' }),
+  addSupplierOldDebt: (payload) => request('/supplier-debts/debt', { method: 'POST', body: JSON.stringify(payload) }),
 
   listSales: (from, to) => request(`/sales${from && to ? `?from=${from}&to=${to}` : ''}`),
   createSale: (payload) => request('/sales', { method: 'POST', body: JSON.stringify(payload) }),
