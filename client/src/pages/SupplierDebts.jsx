@@ -245,7 +245,7 @@ export default function SupplierDebts() {
             </div>
             <div className="form-row">
               <label>Ta'minotchi nomi *</label>
-              <input required value={oldDebtSupplier} onChange={(e) => setOldDebtSupplier(e.target.value)} placeholder="Yangi yoki mavjud ta'minotchi nomi" />
+              <input required list="supplier-names-list-2" value={oldDebtSupplier} onChange={(e) => setOldDebtSupplier(e.target.value)} placeholder="Yangi yoki mavjud ta'minotchi nomi" />
             </div>
             <div className="form-row">
               <label>Qarz summasi *</label>
@@ -451,6 +451,10 @@ export default function SupplierDebts() {
           </form>
         </div>
       )}
+
+      <datalist id="supplier-names-list-2">
+        {suppliers.map((s) => <option key={s.supplier_name} value={s.supplier_name} />)}
+      </datalist>
     </div>
   );
 }
