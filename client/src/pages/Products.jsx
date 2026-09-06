@@ -190,21 +190,21 @@ export default function Products() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div className="form-row">
                 <label>Tan narx</label>
-                <input type="number" value={form.costPrice ?? form.purchase_price ?? 0} onChange={(e) => setForm({ ...form, costPrice: +e.target.value, purchase_price: +e.target.value })} />
+                <input type="number" value={form.costPrice ?? form.purchase_price ?? 0} onFocus={(e) => e.target.select()} onChange={(e) => setForm({ ...form, costPrice: +e.target.value, purchase_price: +e.target.value })} />
               </div>
               <div className="form-row">
                 <label>Sotish narxi *</label>
-                <input required type="number" value={form.sale_price} onChange={(e) => setForm({ ...form, sale_price: +e.target.value })} />
+                <input required type="number" value={form.sale_price} onFocus={(e) => e.target.select()} onChange={(e) => setForm({ ...form, sale_price: +e.target.value })} />
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div className="form-row">
                 <label>Qoldiq soni</label>
-                <input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: +e.target.value })} />
+                <input type="number" value={form.quantity} onFocus={(e) => e.target.select()} onChange={(e) => setForm({ ...form, quantity: +e.target.value })} />
               </div>
               <div className="form-row">
                 <label>Minimal qoldiq (ogohlantirish)</label>
-                <input type="number" value={form.min_quantity} onChange={(e) => setForm({ ...form, min_quantity: +e.target.value })} />
+                <input type="number" value={form.min_quantity} onFocus={(e) => e.target.select()} onChange={(e) => setForm({ ...form, min_quantity: +e.target.value })} />
               </div>
             </div>
             {!editingId && Number(form.quantity) > 0 && Number(form.costPrice ?? form.purchase_price ?? 0) > 0 && (
@@ -243,11 +243,11 @@ export default function Products() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div className="form-row">
                 <label>Qo'shiladigan miqdor *</label>
-                <input required type="number" value={kirimForm.quantity} onChange={(e) => setKirimForm({ ...kirimForm, quantity: e.target.value })} />
+                <input required type="number" value={kirimForm.quantity} onFocus={(e) => e.target.select()} onChange={(e) => setKirimForm({ ...kirimForm, quantity: e.target.value })} />
               </div>
               <div className="form-row">
                 <label>Dona tan narxi *</label>
-                <input required type="number" value={kirimForm.unit_cost} onChange={(e) => setKirimForm({ ...kirimForm, unit_cost: e.target.value })} />
+                <input required type="number" value={kirimForm.unit_cost} onFocus={(e) => e.target.select()} onChange={(e) => setKirimForm({ ...kirimForm, unit_cost: e.target.value })} />
               </div>
             </div>
             <div className="form-row">
