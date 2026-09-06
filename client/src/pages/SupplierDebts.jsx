@@ -11,6 +11,11 @@ export default function SupplierDebts() {
   const [payAmount, setPayAmount] = useState('');
   const [payMethod, setPayMethod] = useState('naqd');
   const [detail, setDetail] = useState(null);
+  const [oldDebtModal, setOldDebtModal] = useState(false);
+  const [oldDebtSupplier, setOldDebtSupplier] = useState('');
+  const [oldDebtAmount, setOldDebtAmount] = useState('');
+  const [oldDebtDate, setOldDebtDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [oldDebtNote, setOldDebtNote] = useState('');
 
   function load() {
     api.listSupplierDebts().then(setSuppliers);
@@ -49,10 +54,28 @@ export default function SupplierDebts() {
     }
   }
 
+  // (30) Ilovadan oldingi eski ta'minotchi qarzlarini qo'lda qo'shish —
+  // mahsulot xaridiga bog'lanmagan, alohida yozuv sifatida.
+  async function handleAddOldDebt(e) {
+    e.preventDefault();
+    try {
+      await api.addSupplierOldDebt({ supplier_name: oldDebtSupplier, amount: +oldDebtAmount, date: oldDebtDate, note: oldDebtNote });
+      setOldDebtModal(false);
+      setOldDebtSupplier('');
+      setOldDebtAmount('');
+      setOldDebtNote('');
+      setOldDebtDate(new Date().toISOString().slice(0, 10));
+      load();
+    } catch (err) {
+      alert(err.message || "Qarz qo'shishda xatolik yuz berdi");
+    }
+  }
+
   return (
     <div>
       <div className="topbar">
         <h2 style={{ margin: 0 }}>Ta'minotchilarga qarzim</h2>
+        <button className="btn" onClick={() => setOldDebtModal(true)}>+ Eski qarz qo'shish</button>
       </div>
 
       <div className="card" style={{ marginBottom: 16, color: 'var(--text-dim)', fontSize: 13 }}>
@@ -104,6 +127,37 @@ export default function SupplierDebts() {
         </div>
       )}
 
+      {oldDebtModal && (
+        <div className="modal-overlay" onClick={() => setOldDebtModal(false)}>
+          <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleAddOldDebt}>
+            <h3 style={{ marginTop: 0 }}>Eski qarz qo'shish</h3>
+            <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 10 }}>
+              Bu ilovadan oldingi, mahsulot xaridiga bog'lanmagan qarzlar uchun.
+            </div>
+            <div className="form-row">
+              <label>Ta'minotchi nomi *</label>
+              <input required value={oldDebtSupplier} onChange={(e) => setOldDebtSupplier(e.target.value)} placeholder="Yangi yoki mavjud ta'minotchi nomi" />
+            </div>
+            <div className="form-row">
+              <label>Qarz summasi *</label>
+              <input required type="number" value={oldDebtAmount} onFocus={(e) => e.target.select()} onChange={(e) => setOldDebtAmount(e.target.value)} />
+            </div>
+            <div className="form-row">
+              <label>Qarz qachondan boshlangan?</label>
+              <input type="date" value={oldDebtDate} onChange={(e) => setOldDebtDate(e.target.value)} />
+            </div>
+            <div className="form-row">
+              <label>Izoh (ixtiyoriy)</label>
+              <input value={oldDebtNote} onChange={(e) => setOldDebtNote(e.target.value)} placeholder="Masalan: ilovadan oldingi qarz" />
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" className="btn secondary" style={{ flex: 1 }} onClick={() => setOldDebtModal(false)}>Bekor qilish</button>
+              <button className="btn" style={{ flex: 1 }}>Qo'shish</button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {detail && (
         <div className="modal-overlay" onClick={() => setDetail(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
@@ -115,8 +169,8 @@ export default function SupplierDebts() {
                 {detail.debts.map((d) => (
                   <tr key={d.id}>
                     <td>{new Date(d.created_at).toLocaleDateString('uz-UZ')}</td>
-                    <td>{d.product_name}</td>
-                    <td>{d.quantity}</td>
+                    <td>{d.product_name || <span style={{ color: 'var(--text-dim)' }}>Eski qarz</span>}</td>
+                    <td>{d.quantity ?? '-'}</td>
                     <td>{money(d.amount)}</td>
                   </tr>
                 ))}
