@@ -13,6 +13,10 @@ export default function Customers() {
   const [payAmount, setPayAmount] = useState('');
   const [payMethod, setPayMethod] = useState('naqd');
   const [detail, setDetail] = useState(null);
+  const [oldDebtModal, setOldDebtModal] = useState(null);
+  const [oldDebtAmount, setOldDebtAmount] = useState('');
+  const [oldDebtDate, setOldDebtDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [oldDebtNote, setOldDebtNote] = useState('');
 
   function load() {
     api.listCustomers().then(setCustomers);
@@ -41,6 +45,24 @@ export default function Customers() {
     load();
   }
 
+  // (30) Ilovadan oldingi eski qarzni qo'lda qo'shish — tan narxi
+  // noma'lum bo'lgani uchun bu qarz "kutilayotgan foyda" hisobiga
+  // qo'shilmaydi (backend margin=0 qilib yaratadi), faqat qarz sifatida
+  // kuzatiladi.
+  async function handleAddOldDebt(e) {
+    e.preventDefault();
+    try {
+      await api.addOldDebt(oldDebtModal.id, { amount: +oldDebtAmount, date: oldDebtDate, note: oldDebtNote });
+      setOldDebtModal(null);
+      setOldDebtAmount('');
+      setOldDebtNote('');
+      setOldDebtDate(new Date().toISOString().slice(0, 10));
+      load();
+    } catch (err) {
+      alert(err.message || "Qarz qo'shishda xatolik yuz berdi");
+    }
+  }
+
   return (
     <div>
       <div className="topbar">
@@ -62,6 +84,7 @@ export default function Customers() {
                 <td style={{ display: 'flex', gap: 6 }}>
                   <button className="btn secondary" onClick={() => openDetail(c)}>Tarix</button>
                   {c.current_debt > 0 && <button className="btn" onClick={() => { setPayModal(c); setPayMethod('naqd'); }}>To'lov qabul qilish</button>}
+                  <button className="btn secondary" onClick={() => setOldDebtModal(c)}>Eski qarz qo'shish</button>
                   <button
                     className="btn danger"
                     onClick={async () => {
@@ -126,13 +149,40 @@ export default function Customers() {
         </div>
       )}
 
+      {oldDebtModal && (
+        <div className="modal-overlay" onClick={() => setOldDebtModal(null)}>
+          <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleAddOldDebt}>
+            <h3 style={{ marginTop: 0 }}>{oldDebtModal.full_name} — eski qarz qo'shish</h3>
+            <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 10 }}>
+              Bu ilovadan oldingi (mahsulot bog'lanmagan) qarzlar uchun. Tan narxi noma'lum bo'lgani uchun bu qarzning foydasi hisobotlarga qo'shilmaydi — faqat qarz sifatida kuzatiladi.
+            </div>
+            <div className="form-row">
+              <label>Qarz summasi *</label>
+              <input required type="number" value={oldDebtAmount} onFocus={(e) => e.target.select()} onChange={(e) => setOldDebtAmount(e.target.value)} />
+            </div>
+            <div className="form-row">
+              <label>Qarz qachondan boshlangan?</label>
+              <input type="date" value={oldDebtDate} onChange={(e) => setOldDebtDate(e.target.value)} />
+            </div>
+            <div className="form-row">
+              <label>Izoh (ixtiyoriy)</label>
+              <input value={oldDebtNote} onChange={(e) => setOldDebtNote(e.target.value)} placeholder="Masalan: ilovadan oldingi qarz" />
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" className="btn secondary" style={{ flex: 1 }} onClick={() => setOldDebtModal(null)}>Bekor qilish</button>
+              <button className="btn" style={{ flex: 1 }}>Qo'shish</button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {detail && (
         <div className="modal-overlay" onClick={() => setDetail(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
             <h3 style={{ marginTop: 0 }}>{detail.customer.full_name} — tarix</h3>
             <h4>Xaridlar</h4>
             <table>
-              <thead><tr><th>Sana</th><th>Jami</th><th>To'langan</th><th>Qarz</th></tr></thead>
+              <thead><tr><th>Sana</th><th>Jami</th><th>To'langan</th><th>Qarz</th><th></th></tr></thead>
               <tbody>
                 {detail.sales.map((s) => (
                   <tr key={s.id}>
@@ -140,9 +190,10 @@ export default function Customers() {
                     <td>{money(s.total_amount)}</td>
                     <td>{money(s.paid_amount)}</td>
                     <td>{money(s.debt_amount)}</td>
+                    <td>{s.is_manual_debt && <span className="badge" style={{ fontSize: 10 }}>Eski qarz</span>}</td>
                   </tr>
                 ))}
-                {detail.sales.length === 0 && <tr><td colSpan={4} style={{ color: 'var(--text-dim)' }}>Xaridlar yo'q</td></tr>}
+                {detail.sales.length === 0 && <tr><td colSpan={5} style={{ color: 'var(--text-dim)' }}>Xaridlar yo'q</td></tr>}
               </tbody>
             </table>
             <h4>To'lovlar</h4>
