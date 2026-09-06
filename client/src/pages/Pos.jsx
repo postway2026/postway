@@ -241,6 +241,7 @@ export default function Pos() {
                     style={{ width: 60 }}
                     value={it.quantity}
                     max={it.max}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => updateQty(it.product_id, +e.target.value)}
                   />
                   {isEditing ? (
@@ -249,6 +250,7 @@ export default function Pos() {
                       autoFocus
                       style={{ width: 90 }}
                       defaultValue={it.unit_price}
+                      onFocus={(e) => e.target.select()}
                       onBlur={(e) => { updateItemPrice(it.product_id, e.target.value); setEditingPriceId(null); }}
                       onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                     />
@@ -303,6 +305,7 @@ export default function Pos() {
                   style={{ flex: 1, minWidth: 0 }}
                   placeholder={discountType === 'percent' ? 'Masalan: 10' : "Masalan: 20000"}
                   value={discountValue}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => setDiscountValue(e.target.value)}
                 />
               )}
@@ -397,7 +400,7 @@ export default function Pos() {
 
           <div className="form-row" style={{ marginTop: 12 }}>
             <label>Qarzga sotish — to'langan summa</label>
-            <input type="number" placeholder="0" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} />
+            <input type="number" placeholder="0" value={paidAmount} onFocus={(e) => e.target.select()} onChange={(e) => setPaidAmount(e.target.value)} />
             <button className="btn secondary" style={{ width: '100%', marginTop: 8 }} onClick={() => handleCheckout('qarz')} disabled={cart.length === 0 || !customerId}>
               📒 Qarzga yozish
             </button>
