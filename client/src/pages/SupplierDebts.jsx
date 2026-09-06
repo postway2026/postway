@@ -239,6 +239,69 @@ export default function SupplierDebts() {
         </div>
       )}
 
+      {detail && (
+        <div className="modal-overlay" onClick={() => setDetail(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 620 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ marginTop: 0 }}>{detail.supplier_name} — tarix</h3>
+              <button className="btn" onClick={() => setKirimModal(true)}>+ Yangi kirim</button>
+            </div>
+
+            <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
+              <div>Jami olingan: <b>{money(detail.debts.reduce((s, d) => s + Number(d.amount || 0), 0))}</b></div>
+            </div>
+
+            <h4>Kirimlar</h4>
+            <table>
+              <thead><tr><th>Sana</th><th>Mahsulot</th><th>Soni</th><th>Summa</th><th>Turi</th><th></th></tr></thead>
+              <tbody>
+                {detail.debts.map((d) => (
+                  <tr key={d.id}>
+                    <td>{new Date(d.created_at).toLocaleDateString('uz-UZ')}</td>
+                    <td>{d.product_name || <span style={{ color: 'var(--text-dim)' }}>Eski qarz</span>}</td>
+                    <td>{d.quantity ?? '-'}</td>
+                    <td>{money(d.amount)}</td>
+                    <td>{paymentBadge(d.payment_type)}</td>
+                    <td style={{ display: 'flex', gap: 4 }}>
+                      <button className="btn secondary" style={{ fontSize: 12, padding: '4px 8px' }} onClick={() => openEditEntry(d)}>Tahrirlash</button>
+                      <button className="btn danger" style={{ fontSize: 12, padding: '4px 8px' }} onClick={() => handleDeleteEntry(d.id)}>O'chirish</button>
+                    </td>
+                  </tr>
+                ))}
+                {detail.debts.length === 0 && <tr><td colSpan={6} style={{ color: 'var(--text-dim)' }}>Kirim yo'q</td></tr>}
+              </tbody>
+            </table>
+            <h4>To'lovlar</h4>
+            <table>
+              <thead><tr><th>Sana</th><th>Summa</th><th>Turi</th><th>Holati</th><th></th></tr></thead>
+              <tbody>
+                {detail.payments.map((p) => (
+                  <tr key={p.id} style={p.cancelled ? { opacity: 0.5, textDecoration: 'line-through' } : undefined}>
+                    <td>{new Date(p.created_at).toLocaleDateString('uz-UZ')}</td>
+                    <td>{money(p.amount)}</td>
+                    <td>{p.payment_method === 'karta' ? '💳 Karta' : '💵 Naqd'}</td>
+                    <td>{p.cancelled ? 'Bekor qilingan' : 'Faol'}</td>
+                    <td>
+                      {!p.cancelled && (
+                        <button className="btn danger" style={{ textDecoration: 'none' }} onClick={() => handleCancelPayment(p.id)}>
+                          Bekor qilish
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {detail.payments.length === 0 && <tr><td colSpan={5} style={{ color: 'var(--text-dim)' }}>To'lovlar yo'q</td></tr>}
+              </tbody>
+            </table>
+            <button className="btn secondary" style={{ width: '100%', marginTop: 10 }} onClick={() => setDetail(null)}>Yopish</button>
+          </div>
+        </div>
+      )}
+
+      {/* (31) Muhim: bu ikkita modal "Tarix" oynasi (detail) USTIGA ochiladi,
+          shuning uchun JSX'da ATAYLAB detail'dan KEYIN joylashtirilgan —
+          aks holda "detail" oynasi keyinroq render bo'lganidan (DOM'da
+          keyingi) ustiga chiqib, ularning tugmalarini bosib bo'lmay qolar edi. */}
       {kirimModal && detail && (
         <div className="modal-overlay" onClick={() => setKirimModal(false)}>
           <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleAddKirim}>
@@ -333,65 +396,6 @@ export default function SupplierDebts() {
               <button className="btn" style={{ flex: 1 }}>Saqlash</button>
             </div>
           </form>
-        </div>
-      )}
-
-      {detail && (
-        <div className="modal-overlay" onClick={() => setDetail(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 620 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ marginTop: 0 }}>{detail.supplier_name} — tarix</h3>
-              <button className="btn" onClick={() => setKirimModal(true)}>+ Yangi kirim</button>
-            </div>
-
-            <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
-              <div>Jami olingan: <b>{money(detail.debts.reduce((s, d) => s + Number(d.amount || 0), 0))}</b></div>
-            </div>
-
-            <h4>Kirimlar</h4>
-            <table>
-              <thead><tr><th>Sana</th><th>Mahsulot</th><th>Soni</th><th>Summa</th><th>Turi</th><th></th></tr></thead>
-              <tbody>
-                {detail.debts.map((d) => (
-                  <tr key={d.id}>
-                    <td>{new Date(d.created_at).toLocaleDateString('uz-UZ')}</td>
-                    <td>{d.product_name || <span style={{ color: 'var(--text-dim)' }}>Eski qarz</span>}</td>
-                    <td>{d.quantity ?? '-'}</td>
-                    <td>{money(d.amount)}</td>
-                    <td>{paymentBadge(d.payment_type)}</td>
-                    <td style={{ display: 'flex', gap: 4 }}>
-                      <button className="btn secondary" style={{ fontSize: 12, padding: '4px 8px' }} onClick={() => openEditEntry(d)}>Tahrirlash</button>
-                      <button className="btn danger" style={{ fontSize: 12, padding: '4px 8px' }} onClick={() => handleDeleteEntry(d.id)}>O'chirish</button>
-                    </td>
-                  </tr>
-                ))}
-                {detail.debts.length === 0 && <tr><td colSpan={6} style={{ color: 'var(--text-dim)' }}>Kirim yo'q</td></tr>}
-              </tbody>
-            </table>
-            <h4>To'lovlar</h4>
-            <table>
-              <thead><tr><th>Sana</th><th>Summa</th><th>Turi</th><th>Holati</th><th></th></tr></thead>
-              <tbody>
-                {detail.payments.map((p) => (
-                  <tr key={p.id} style={p.cancelled ? { opacity: 0.5, textDecoration: 'line-through' } : undefined}>
-                    <td>{new Date(p.created_at).toLocaleDateString('uz-UZ')}</td>
-                    <td>{money(p.amount)}</td>
-                    <td>{p.payment_method === 'karta' ? '💳 Karta' : '💵 Naqd'}</td>
-                    <td>{p.cancelled ? 'Bekor qilingan' : 'Faol'}</td>
-                    <td>
-                      {!p.cancelled && (
-                        <button className="btn danger" style={{ textDecoration: 'none' }} onClick={() => handleCancelPayment(p.id)}>
-                          Bekor qilish
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {detail.payments.length === 0 && <tr><td colSpan={5} style={{ color: 'var(--text-dim)' }}>To'lovlar yo'q</td></tr>}
-              </tbody>
-            </table>
-            <button className="btn secondary" style={{ width: '100%', marginTop: 10 }} onClick={() => setDetail(null)}>Yopish</button>
-          </div>
         </div>
       )}
     </div>
