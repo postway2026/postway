@@ -139,6 +139,7 @@ export default function CashMovements() {
                 type="number"
                 required
                 value={form.amount}
+                onFocus={(e) => e.target.select()}
                 onChange={(e) => setForm({ ...form, amount: e.target.value })}
               />
             </div>
