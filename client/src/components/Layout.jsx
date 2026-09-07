@@ -9,6 +9,7 @@ const links = [
   { to: '/kassa-harakatlari', label: '💸 Kassa harakati' },
   { to: '/mijozlar', label: '👥 Mijozlar / Qarz' },
   { to: '/taminotchilar', label: "🏭 Ta'minotchilarga qarzim" },
+  { to: '/kassa-yopish', label: '🔒 Kunlik kassa yopish' },
   { to: '/hisobotlar', label: '📈 Hisobotlar' },
   { to: '/xodimlar', label: '🧑‍💼 Xodimlar', adminOnly: true },
 ];
