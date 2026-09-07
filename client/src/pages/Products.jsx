@@ -23,7 +23,7 @@ export default function Products() {
   const [kirimProduct, setKirimProduct] = useState(null);
   const [kirimForm, setKirimForm] = useState({ quantity: '', unit_cost: '', payment_type: 'naqd', supplier_name: '', note: '' });
   const [supplierNames, setSupplierNames] = useState([]);
-  const [sortBy, setSortBy] = useState('name');
+  const [sortBy, setSortBy] = useState('created_desc');
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   const [showStaleOnly, setShowStaleOnly] = useState(false);
   const { user } = useAuth();
@@ -176,8 +176,8 @@ export default function Products() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <label style={{ fontSize: 13, color: 'var(--text-dim)' }}>Saralash:</label>
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-            <option value="name">Alfavit (A-Z)</option>
             <option value="created_desc">Yangi qo'shilganlar avval</option>
+            <option value="name">Alfabet (A-Z)</option>
             <option value="created_asc">Eski qo'shilganlar avval</option>
             <option value="qty_asc">Qoldiq: kamdan-ko'pga</option>
             <option value="qty_desc">Qoldiq: ko'pdan-kamga</option>
