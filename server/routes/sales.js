@@ -85,6 +85,9 @@ router.post('/', authRequired, (req, res) => {
     p.quantity -= it.quantity;
     p.sold_count = Number(p.sold_count || 0) + Number(it.quantity || 0);
     p.sales_count = Number(p.sales_count || 0) + Number(it.quantity || 0);
+    // (27) "Uzoq vaqt sotilmagan" filtri uchun — har bir mahsulot oxirgi
+    // marta qachon sotilganini kuzatib boramiz.
+    p.last_sold_at = new Date().toISOString();
   }
 
   writeData(data);
