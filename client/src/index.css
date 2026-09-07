@@ -1,15 +1,20 @@
 :root {
-  --bg: #0f172a;
-  --panel: #1e293b;
-  --panel-light: #273549;
-  --border: #334155;
-  --text: #f1f5f9;
-  --text-dim: #94a3b8;
-  --accent: #f97316;
-  --accent-dark: #ea580c;
-  --green: #22c55e;
-  --red: #ef4444;
-  --blue: #3b82f6;
+  /* (5) Dizaynni yengillashtirish — qorong'i fon o'rniga och (oq/ko'k
+     tusli) fon, matn esa qalin va deyarli qora, o'qish qulayroq bo'lishi
+     uchun. Barcha ranglar shu o'zgaruvchilar orqali boshqarilgani uchun,
+     boshqa hech qanday qatorni o'zgartirmasdan butun ilova rangi
+     yangilanadi. */
+  --bg: #eef3fa;
+  --panel: #ffffff;
+  --panel-light: #eef3fa;
+  --border: #c7d2e0;
+  --text: #0b1220;
+  --text-dim: #47566b;
+  --accent: #c2410c;
+  --accent-dark: #9a3412;
+  --green: #16a34a;
+  --red: #dc2626;
+  --blue: #2563eb;
 }
 
 * { box-sizing: border-box; }
@@ -19,6 +24,7 @@ body {
   font-family: 'Segoe UI', system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
+  font-weight: 500;
 }
 
 button {
@@ -105,6 +111,7 @@ input:focus, select:focus, textarea:focus {
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 18px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
 .stat-grid {
@@ -119,6 +126,7 @@ input:focus, select:focus, textarea:focus {
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 18px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
 .stat-card .label { color: var(--text-dim); font-size: 13px; margin-bottom: 6px; }
@@ -172,6 +180,7 @@ th { color: var(--text-dim); font-weight: 600; font-size: 13px; }
   background: var(--panel); border-radius: 16px; padding: 24px;
   width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto;
   border: 1px solid var(--border);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
 }
 
 .form-row { margin-bottom: 14px; }
@@ -183,6 +192,7 @@ th { color: var(--text-dim); font-weight: 600; font-size: 13px; }
 .login-box {
   width: 100%; max-width: 380px; background: var(--panel);
   border: 1px solid var(--border); border-radius: 16px; padding: 32px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
 }
 
 .mobile-toggle { display: none; }
