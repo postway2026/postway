@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext.jsx';
 
@@ -17,6 +17,38 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const sidebarRef = useRef(null);
+  const toggleRef = useRef(null);
+  const touchStartX = useRef(null);
+
+  // (15) Mobilda sidebar ochiq bo'lganda tashqariga bosilsa yopilishi.
+  // Toggle tugmasi alohida tekshiriladi — aks holda tugma bosilganda
+  // sidebar bir zumda ochilib, darhol yana yopilib qolardi.
+  useEffect(() => {
+    function handleOutside(e) {
+      if (!open) return;
+      if (sidebarRef.current && sidebarRef.current.contains(e.target)) return;
+      if (toggleRef.current && toggleRef.current.contains(e.target)) return;
+      setOpen(false);
+    }
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
+  }, [open]);
+
+  // (15) Sidebar ochiq bo'lganda chapga svayp qilinsa yopilishi.
+  function handleTouchStart(e) {
+    touchStartX.current = e.touches[0].clientX;
+  }
+  function handleTouchEnd(e) {
+    if (touchStartX.current == null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    if (deltaX < -50) setOpen(false);
+    touchStartX.current = null;
+  }
 
   function handleLogout() {
     logout();
@@ -25,7 +57,13 @@ export default function Layout() {
 
   return (
     <div className="app-layout">
-      <div className={`sidebar ${open ? 'open' : ''}`}>
+      {open && <div className="sidebar-overlay" onClick={() => setOpen(false)} />}
+      <div
+        className={`sidebar ${open ? 'open' : ''}`}
+        ref={sidebarRef}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <div className="sidebar-brand">
           GM_0064
           <span>{user?.full_name}</span>
@@ -49,7 +87,7 @@ export default function Layout() {
         </button>
       </div>
       <div className="main-content">
-        <div className="mobile-toggle" style={{ marginBottom: 16 }}>
+        <div className="mobile-toggle" style={{ marginBottom: 16 }} ref={toggleRef}>
           <button className="btn secondary" onClick={() => setOpen(!open)}>☰ Menyu</button>
         </div>
         <Outlet />
