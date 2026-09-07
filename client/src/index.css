@@ -156,7 +156,7 @@ th { color: var(--text-dim); font-weight: 600; font-size: 13px; }
   font-size: 14px;
 }
 .btn:hover { background: var(--accent-dark); }
-.btn.secondary { background: var(--panel-light); border: 1px solid var(--border); }
+.btn.secondary { background: var(--panel-light); color: var(--text); border: 1px solid var(--border); }
 .btn.danger { background: var(--red); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
