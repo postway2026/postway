@@ -113,6 +113,15 @@ export default function Products() {
     load(search);
   }
 
+  const stats = {
+    typeCount: products.length,
+    totalUnits: products.reduce((s, p) => s + (Number(p.quantity) || 0), 0),
+    costValue: products.reduce((s, p) => s + (Number(p.quantity) || 0) * (Number(p.costPrice ?? p.purchase_price) || 0), 0),
+    saleValue: products.reduce((s, p) => s + (Number(p.quantity) || 0) * (Number(p.sale_price) || 0), 0),
+    lowStockCount: products.filter((p) => (Number(p.quantity) || 0) <= (Number(p.min_quantity) || 0)).length,
+  };
+  stats.potentialProfit = stats.saleValue - stats.costValue;
+
   return (
     <div>
       <div className="topbar">
@@ -132,6 +141,39 @@ export default function Products() {
             {showCostPrices ? '🙈' : '👁️'} {showCostPrices ? 'Yashirish' : 'Ko\'rsatish'}
           </button>
         )}
+      </div>
+
+      {/* (26) Mahsulotlar sahifasi uchun umumiy statistika paneli — tan
+          narxga bog'liq ko'rsatkichlar (tan narx qiymati, potensial
+          foyda) xuddi jadvaldagi "Tan narx" ustuni kabi showCostPrices
+          orqasida yashiriladi, chunki bular ham nozik moliyaviy ma'lumot. */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>Mahsulot turi</div>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>{stats.typeCount}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>Jami dona</div>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>{stats.totalUnits}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>Tan narx qiymati</div>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>{showCostPrices ? money(stats.costValue) : '••••••'}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>Sotish qiymati</div>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>{money(stats.saleValue)}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>Potensial foyda</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--green)' }}>{showCostPrices ? money(stats.potentialProfit) : '••••••'}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>Kam qolgan</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: stats.lowStockCount > 0 ? 'var(--red)' : undefined }}>{stats.lowStockCount} ta</div>
+          </div>
+        </div>
       </div>
 
       <div className="card">
