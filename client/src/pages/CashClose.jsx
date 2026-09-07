@@ -1,79 +1,92 @@
-import { Router } from 'express';
-import { readData, writeData, nextId } from '../db/store.js';
-import { authRequired } from '../middleware/auth.js';
+import React, { useEffect, useState } from 'react';
+import { api } from '../api.js';
 
-const router = Router();
-
-// (25) Kunlik kassa yopish/solishtirish — kun oxirida do'kon egasi
-// naqt pulni jismonan sanaydi, tizim esa o'z hisob-kitobi bo'yicha
-// "bo'lishi kerak bo'lgan" summani ko'rsatadi. Ikkalasi solishtirilib,
-// farq bo'lsa — aniq ko'rinadi. Bu yozuv HECH QANDAY avtomatik tuzatish
-// qilmaydi (kassa balansiga ta'sir qilmaydi) — faqat farqni "qayd qilib,
-// ko'rsatib beradi" (Anthropic emas, do'kon egasi keyin o'zi qaror
-// qabul qiladi). Bu shu bandning asl talabiga mos: "aniqlash va
-// ko'rsatish", avtomatik tuzatish emas — chunki noto'g'ri avtomatik
-// tuzatish haqiqiy pul yo'qolishini yashirib qo'yishi mumkin.
-function computeExpected(data) {
-  const sales = Array.isArray(data.sales) ? data.sales : [];
-  const cashMovements = Array.isArray(data.cash_movements) ? data.cash_movements : [];
-  const debtPayments = Array.isArray(data.debt_payments) ? data.debt_payments : [];
-  const supplierPayments = (Array.isArray(data.supplier_debt_payments) ? data.supplier_debt_payments : []).filter((p) => !p.cancelled);
-
-  const cashIn = sales.filter((s) => s.payment_type === 'naqd').reduce((s, x) => s + Number(x.total_amount || 0), 0)
-    + sales.filter((s) => s.payment_type === 'qarz').reduce((s, x) => s + Number(x.paid_amount || 0), 0)
-    + debtPayments.filter((p) => (p.payment_method || 'naqd') === 'naqd').reduce((s, p) => s + Number(p.amount || 0), 0);
-  const cashOut = cashMovements.filter((m) => (m.payment_method || 'naqd') === 'naqd').reduce((s, m) => s + Number(m.amount || 0), 0)
-    + supplierPayments.filter((p) => (p.payment_method || 'naqd') === 'naqd').reduce((s, p) => s + Number(p.amount || 0), 0);
-  const cashOnHand = cashIn - cashOut;
-
-  const cardIn = sales.filter((s) => s.payment_type === 'karta').reduce((s, x) => s + Number(x.total_amount || 0), 0)
-    + debtPayments.filter((p) => p.payment_method === 'karta').reduce((s, p) => s + Number(p.amount || 0), 0);
-  const cardOut = cashMovements.filter((m) => m.payment_method === 'karta').reduce((s, m) => s + Number(m.amount || 0), 0)
-    + supplierPayments.filter((p) => p.payment_method === 'karta').reduce((s, p) => s + Number(p.amount || 0), 0);
-  const cardOnHand = cardIn - cardOut;
-
-  return { cashOnHand, cardOnHand };
+function money(n) {
+  return Math.round(Number(n || 0)).toLocaleString('uz-UZ') + " so'm";
 }
 
-// Hozirgi vaqtda "bo'lishi kerak" bo'lgan summa — yopish oynasini
-// ochganda oldindan ko'rsatish uchun (hali saqlanmagan holatda).
-router.get('/expected', authRequired, (req, res) => {
-  const data = readData();
-  res.json(computeExpected(data));
-});
+function formatDateTime(value) {
+  if (!value) return '-';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleString('uz-UZ', { dateStyle: 'short', timeStyle: 'short' });
+}
 
-router.get('/', authRequired, (req, res) => {
-  const data = readData();
-  const rows = [...(data.cash_closes || [])].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  res.json(rows);
-});
+export default function CashClose() {
+  const [expected, setExpected] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [actualNaqd, setActualNaqd] = useState('');
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [result, setResult] = useState(null);
 
-router.post('/', authRequired, (req, res) => {
-  const { actual_naqd, note } = req.body;
-  if (actual_naqd === undefined || actual_naqd === null || isNaN(Number(actual_naqd))) {
-    return res.status(400).json({ error: "Sanalgan naqt summasini to'g'ri kiriting" });
+  function load() {
+    api.expectedCashClose().then(setExpected).catch(() => {});
+    api.listCashCloses().then(setHistory).catch(() => {});
   }
 
-  const data = readData();
-  const { cashOnHand, cardOnHand } = computeExpected(data);
-  const actual = Number(actual_naqd);
-  const difference = actual - cashOnHand;
+  useEffect(load, []);
 
-  if (!Array.isArray(data.cash_closes)) data.cash_closes = [];
-  const id = nextId(data, 'cash_closes');
-  const record = {
-    id,
-    expected_naqd: cashOnHand,
-    expected_karta: cardOnHand,
-    actual_naqd: actual,
-    difference,
-    note: note || '',
-    closed_by: req.user?.full_name || "Noma'lum",
-    created_at: new Date().toISOString(),
-  };
-  data.cash_closes.push(record);
-  writeData(data);
-  res.json(record);
-});
+  const difference = expected && actualNaqd !== '' ? Number(actualNaqd) - expected.cashOnHand : null;
 
-export default router;
+  async function handleClose(e) {
+    e.preventDefault();
+    setSaving(true);
+    setResult(null);
+    try {
+      const record = await api.createCashClose({ actual_naqd: +actualNaqd, note });
+      setResult(record);
+      setActualNaqd('');
+      setNote('');
+      load();
+    } catch (err) {
+      alert(err.message || 'Saqlashda xatolik yuz berdi');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="topbar">
+        <h2 style={{ margin: 0 }}>Kunlik kassa yopish</h2>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16, color: 'var(--text-dim)', fontSize: 13 }}>
+        Kun oxirida qo'lingizdagi naqt pulni sanab, shu yerga kiriting. Tizim
+        o'z hisob-kitobi bo'yicha "bo'lishi kerak bo'lgan" summa bilan
+        solishtirib, farqni ko'rsatadi. Bu faqat farqni aniqlash uchun —
+        kassa hisobiga avtomatik hech qanday o'zgartirish kiritilmaydi.
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h3 style={{ marginTop: 0 }}>Bugungi solishtirish</h3>
+        <form onSubmit={handleClose}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
+            <div>
+              <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>Tizim bo'yicha bo'lishi kerak (naqt)</div>
+              <div style={{ fontSize: 22, fontWeight: 700 }}>{expected ? money(expected.cashOnHand) : '...'}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>Tizim bo'yicha bo'lishi kerak (karta, ma'lumot uchun)</div>
+              <div style={{ fontSize: 22, fontWeight: 700 }}>{expected ? money(expected.cardOnHand) : '...'}</div>
+            </div>
+          </div>
+
+          <div className="form-row">
+            <label>Jismonan sanalgan naqt summasi *</label>
+            <input required type="number" value={actualNaqd} onFocus={(e) => e.target.select()} onChange={(e) => setActualNaqd(e.target.value)} />
+          </div>
+
+          {difference !== null && (
+            <div style={{ marginBottom: 14, fontWeight: 700, color: difference === 0 ? 'var(--green)' : 'var(--red)' }}>
+              {difference === 0
+                ? "✅ Farq yo'q — hammasi to'g'ri"
+                : difference > 0
+                ? `⚠️ ${money(difference)} ORTIQCHA (tizim kutganidan ko'proq bor)`
+                : `⚠️ ${money(Math.abs(difference))} KAMOMAD (tizim kutganidan kam)`}
+            </div>
+          )}
+
+          <div className="form-row">
+            <label>Izoh (ixtiyoriy — farq
