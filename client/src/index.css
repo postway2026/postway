@@ -186,6 +186,7 @@ th { color: var(--text-dim); font-weight: 600; font-size: 13px; }
 }
 
 .mobile-toggle { display: none; }
+.sidebar-overlay { display: none; }
 
 @media (max-width: 768px) {
   .sidebar {
@@ -197,4 +198,10 @@ th { color: var(--text-dim); font-weight: 600; font-size: 13px; }
   .main-content { padding: 14px; }
   table { font-size: 13px; }
   th, td { padding: 8px 6px; }
+  /* (15) Sidebar ochiq bo'lganda orqa fon xiralashadi, tashqariga
+     bosilsa yopilishi uchun ushlash maydoni hisoblanadi. */
+  .sidebar-overlay {
+    display: block; position: fixed; inset: 0; z-index: 40;
+    background: rgba(0, 0, 0, 0.5);
+  }
 }
