@@ -23,6 +23,9 @@ export default function Products() {
   const [kirimProduct, setKirimProduct] = useState(null);
   const [kirimForm, setKirimForm] = useState({ quantity: '', unit_cost: '', payment_type: 'naqd', supplier_name: '', note: '' });
   const [supplierNames, setSupplierNames] = useState([]);
+  const [sortBy, setSortBy] = useState('name');
+  const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [showStaleOnly, setShowStaleOnly] = useState(false);
   const { user } = useAuth();
   const canEdit = user.role === 'admin' || user.role === 'omborchi';
 
@@ -122,6 +125,31 @@ export default function Products() {
   };
   stats.potentialProfit = stats.saleValue - stats.costValue;
 
+  // (27) Saralash va filtrlash — hammasi mijoz tomonida (client-side)
+  // amalga oshiriladi, chunki mahsulotlar ro'yxati kichik va bu qo'shimcha
+  // server so'rovlarini talab qilmaydi.
+  const STALE_DAYS = 30;
+  const staleThreshold = Date.now() - STALE_DAYS * 24 * 60 * 60 * 1000;
+
+  let visibleProducts = [...products];
+  if (showLowStockOnly) {
+    visibleProducts = visibleProducts.filter((p) => (Number(p.quantity) || 0) <= (Number(p.min_quantity) || 0));
+  }
+  if (showStaleOnly) {
+    visibleProducts = visibleProducts.filter((p) => {
+      if (!p.last_sold_at) return true; // hech qachon sotilmagan — eng "eski"
+      return new Date(p.last_sold_at).getTime() < staleThreshold;
+    });
+  }
+  visibleProducts.sort((a, b) => {
+    if (sortBy === 'name') return a.name.localeCompare(b.name);
+    if (sortBy === 'created_desc') return new Date(b.created_at) - new Date(a.created_at);
+    if (sortBy === 'created_asc') return new Date(a.created_at) - new Date(b.created_at);
+    if (sortBy === 'qty_asc') return (Number(a.quantity) || 0) - (Number(b.quantity) || 0);
+    if (sortBy === 'qty_desc') return (Number(b.quantity) || 0) - (Number(a.quantity) || 0);
+    return 0;
+  });
+
   return (
     <div>
       <div className="topbar">
@@ -141,6 +169,35 @@ export default function Products() {
             {showCostPrices ? '🙈' : '👁️'} {showCostPrices ? 'Yashirish' : 'Ko\'rsatish'}
           </button>
         )}
+      </div>
+
+      {/* (27) Saralash va filtrlash */}
+      <div className="card" style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label style={{ fontSize: 13, color: 'var(--text-dim)' }}>Saralash:</label>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            <option value="name">Alfavit (A-Z)</option>
+            <option value="created_desc">Yangi qo'shilganlar avval</option>
+            <option value="created_asc">Eski qo'shilganlar avval</option>
+            <option value="qty_asc">Qoldiq: kamdan-ko'pga</option>
+            <option value="qty_desc">Qoldiq: ko'pdan-kamga</option>
+          </select>
+        </div>
+        <button
+          type="button"
+          className={`btn ${showLowStockOnly ? '' : 'secondary'}`}
+          onClick={() => setShowLowStockOnly((v) => !v)}
+        >
+          ⚠️ Faqat kam qolganlar
+        </button>
+        <button
+          type="button"
+          className={`btn ${showStaleOnly ? '' : 'secondary'}`}
+          onClick={() => setShowStaleOnly((v) => !v)}
+          title="Oxirgi 30 kunda sotilmagan mahsulotlar"
+        >
+          🐌 Uzoq sotilmaganlar (30+ kun)
+        </button>
       </div>
 
       {/* (26) Mahsulotlar sahifasi uchun umumiy statistika paneli — tan
@@ -184,7 +241,7 @@ export default function Products() {
             </tr>
           </thead>
           <tbody>
-            {products.map((p) => (
+            {visibleProducts.map((p) => (
               <tr key={p.id}>
                 <td>{p.name}<div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{p.car_models}</div></td>
                 <td>{p.brand}</td>
@@ -207,7 +264,7 @@ export default function Products() {
                 )}
               </tr>
             ))}
-            {products.length === 0 && <tr><td colSpan={canEdit ? 7 : 6} style={{ color: 'var(--text-dim)' }}>Mahsulot topilmadi</td></tr>}
+            {visibleProducts.length === 0 && <tr><td colSpan={canEdit ? 7 : 6} style={{ color: 'var(--text-dim)' }}>Mahsulot topilmadi</td></tr>}
           </tbody>
         </table>
       </div>
