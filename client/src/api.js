@@ -65,6 +65,8 @@ export const api = {
   expectedCashClose: () => request('/cash-closes/expected'),
   listCashCloses: () => request('/cash-closes'),
   createCashClose: (payload) => request('/cash-closes', { method: 'POST', body: JSON.stringify(payload) }),
+  updateCashClose: (id, payload) => request(`/cash-closes/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteCashClose: (id) => request(`/cash-closes/${id}`, { method: 'DELETE' }),
 };
 
 export { getToken };
