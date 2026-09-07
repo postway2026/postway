@@ -19,6 +19,8 @@ export default function CashClose() {
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editNote, setEditNote] = useState('');
 
   function load() {
     api.expectedCashClose().then(setExpected).catch(() => {});
@@ -43,6 +45,35 @@ export default function CashClose() {
       alert(err.message || 'Saqlashda xatolik yuz berdi');
     } finally {
       setSaving(false);
+    }
+  }
+
+  function openEdit(h) {
+    setEditingId(h.id);
+    setEditNote(h.note || '');
+  }
+
+  // (25) Farq keyinroq tushuntirilsa (masalan "kamunalgaga ketgan ekan,
+  // Kassa harakatiga yozib qo'ydim") — izohni yangilab, "tushuntirilgan"
+  // deb belgilaymiz. Bu yozuvning o'zidagi raqamlar o'zgarmaydi, faqat
+  // holati va izohi yangilanadi.
+  async function handleSaveNote(id) {
+    try {
+      await api.updateCashClose(id, { note: editNote, resolved: true });
+      setEditingId(null);
+      load();
+    } catch (err) {
+      alert(err.message || 'Saqlashda xatolik yuz berdi');
+    }
+  }
+
+  async function handleDelete(id) {
+    if (!confirm("Bu kassa yopish yozuvini o'chirishni xohlaysizmi?")) return;
+    try {
+      await api.deleteCashClose(id);
+      load();
+    } catch (err) {
+      alert(err.message || "O'chirishda xatolik yuz berdi");
     }
   }
 
@@ -113,8 +144,10 @@ export default function CashClose() {
               <th>Kutilgan (naqt)</th>
               <th>Sanalgan (naqt)</th>
               <th>Farq</th>
+              <th>Holati</th>
               <th>Izoh</th>
               <th>Kim yopdi</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -124,11 +157,42 @@ export default function CashClose() {
                 <td>{money(h.expected_naqd)}</td>
                 <td>{money(h.actual_naqd)}</td>
                 <td style={{ color: h.difference === 0 ? 'var(--green)' : 'var(--red)', fontWeight: 700 }}>{money(h.difference)}</td>
-                <td>{h.note || '-'}</td>
+                <td>
+                  {h.difference === 0 ? (
+                    <span style={{ color: 'var(--green)' }}>✅ Farqsiz</span>
+                  ) : h.resolved ? (
+                    <span style={{ color: 'var(--green)' }}>✅ Tushuntirilgan</span>
+                  ) : (
+                    <span style={{ color: 'var(--red)' }}>⚠️ Hal qilinmagan</span>
+                  )}
+                </td>
+                <td>
+                  {editingId === h.id ? (
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input
+                        style={{ minWidth: 160 }}
+                        value={editNote}
+                        onChange={(e) => setEditNote(e.target.value)}
+                        placeholder="Farq sababi"
+                        autoFocus
+                      />
+                      <button type="button" className="btn" style={{ fontSize: 12, padding: '4px 8px' }} onClick={() => handleSaveNote(h.id)}>Saqlash</button>
+                      <button type="button" className="btn secondary" style={{ fontSize: 12, padding: '4px 8px' }} onClick={() => setEditingId(null)}>Bekor</button>
+                    </div>
+                  ) : (
+                    h.note || '-'
+                  )}
+                </td>
                 <td>{h.closed_by || '-'}</td>
+                <td style={{ display: 'flex', gap: 4 }}>
+                  {editingId !== h.id && (
+                    <button type="button" className="btn secondary" style={{ fontSize: 12, padding: '4px 8px' }} onClick={() => openEdit(h)}>Tahrirlash</button>
+                  )}
+                  <button type="button" className="btn danger" style={{ fontSize: 12, padding: '4px 8px' }} onClick={() => handleDelete(h.id)}>O'chirish</button>
+                </td>
               </tr>
             ))}
-            {history.length === 0 && <tr><td colSpan={6} style={{ color: 'var(--text-dim)' }}>Hali kassa yopilmagan</td></tr>}
+            {history.length === 0 && <tr><td colSpan={8} style={{ color: 'var(--text-dim)' }}>Hali kassa yopilmagan</td></tr>}
           </tbody>
         </table>
       </div>
