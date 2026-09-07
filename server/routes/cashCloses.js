@@ -68,12 +68,45 @@ router.post('/', authRequired, (req, res) => {
     actual_naqd: actual,
     difference,
     note: note || '',
+    resolved: false,
     closed_by: req.user?.full_name || "Noma'lum",
     created_at: new Date().toISOString(),
   };
   data.cash_closes.push(record);
   writeData(data);
   res.json(record);
+});
+
+// (25) Farqni keyinroq tushuntirish/hal qilingan deb belgilash — masalan,
+// ertasi kuni "bu kamunalgaga ketgan pul edi" deb eslansa, izohni
+// yangilab, "tushuntirilgan" deb belgilash mumkin. Bu yozuvning o'zi
+// (kutilgan/sanalgan/farq) o'zgarmaydi — faqat izoh va holat yangilanadi;
+// haqiqiy tuzatish "Kassa harakati"ga tegishli xarajatni qo'shish orqali
+// amalga oshiriladi, bu esa keyingi kunlardagi "bo'lishi kerak" hisobini
+// avtomatik to'g'irlaydi.
+router.put('/:id', authRequired, (req, res) => {
+  const data = readData();
+  const id = Number(req.params.id);
+  const record = (data.cash_closes || []).find((c) => Number(c.id) === id);
+  if (!record) return res.status(404).json({ error: 'Yozuv topilmadi' });
+
+  const { note, resolved } = req.body;
+  if (note !== undefined) record.note = note;
+  if (resolved !== undefined) record.resolved = !!resolved;
+
+  writeData(data);
+  res.json(record);
+});
+
+router.delete('/:id', authRequired, (req, res) => {
+  const data = readData();
+  const id = Number(req.params.id);
+  const exists = (data.cash_closes || []).some((c) => Number(c.id) === id);
+  if (!exists) return res.status(404).json({ error: 'Yozuv topilmadi' });
+
+  data.cash_closes = data.cash_closes.filter((c) => Number(c.id) !== id);
+  writeData(data);
+  res.json({ success: true });
 });
 
 export default router;
