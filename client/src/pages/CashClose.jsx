@@ -89,4 +89,49 @@ export default function CashClose() {
           )}
 
           <div className="form-row">
-            <label>Izoh (ixtiyoriy — farq
+            <label>Izoh (ixtiyoriy — farq sababi, agar bilsangiz)</label>
+            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Masalan: mayda pul yetishmadi, hisoblash xatosi va h.k." />
+          </div>
+
+          <button className="btn" disabled={saving}>{saving ? 'Saqlanmoqda...' : 'Yopish va saqlash'}</button>
+        </form>
+
+        {result && (
+          <div style={{ marginTop: 16, padding: 12, borderRadius: 10, background: 'var(--panel-light)', border: '1px solid var(--border)' }}>
+            ✅ Saqlandi — {formatDateTime(result.created_at)}: kutilgan {money(result.expected_naqd)}, sanalgan {money(result.actual_naqd)}, farq{' '}
+            <b style={{ color: result.difference === 0 ? 'var(--green)' : 'var(--red)' }}>{money(result.difference)}</b>
+          </div>
+        )}
+      </div>
+
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>Tarix</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Sana</th>
+              <th>Kutilgan (naqt)</th>
+              <th>Sanalgan (naqt)</th>
+              <th>Farq</th>
+              <th>Izoh</th>
+              <th>Kim yopdi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {history.map((h) => (
+              <tr key={h.id}>
+                <td>{formatDateTime(h.created_at)}</td>
+                <td>{money(h.expected_naqd)}</td>
+                <td>{money(h.actual_naqd)}</td>
+                <td style={{ color: h.difference === 0 ? 'var(--green)' : 'var(--red)', fontWeight: 700 }}>{money(h.difference)}</td>
+                <td>{h.note || '-'}</td>
+                <td>{h.closed_by || '-'}</td>
+              </tr>
+            ))}
+            {history.length === 0 && <tr><td colSpan={6} style={{ color: 'var(--text-dim)' }}>Hali kassa yopilmagan</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
