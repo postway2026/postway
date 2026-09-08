@@ -234,8 +234,8 @@ export default function Pos() {
             const isEditing = editingPriceId === it.product_id;
             return (
               <div key={it.product_id} style={{ marginBottom: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ flex: 1, fontSize: 14 }}>{it.product_name}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <div style={{ flex: '1 1 140px', fontSize: 14, minWidth: 100 }}>{it.product_name}</div>
                   <input
                     type="number"
                     style={{ width: 60 }}
