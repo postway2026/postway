@@ -5,20 +5,20 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('gm0064_user');
+    const saved = localStorage.getItem('posway_user');
     return saved ? JSON.parse(saved) : null;
   });
 
   async function login(username, password) {
     const data = await api.login(username, password);
-    localStorage.setItem('gm0064_token', data.token);
-    localStorage.setItem('gm0064_user', JSON.stringify(data.user));
+    localStorage.setItem('posway_token', data.token);
+    localStorage.setItem('posway_user', JSON.stringify(data.user));
     setUser(data.user);
   }
 
   function logout() {
-    localStorage.removeItem('gm0064_token');
-    localStorage.removeItem('gm0064_user');
+    localStorage.removeItem('posway_token');
+    localStorage.removeItem('posway_user');
     setUser(null);
   }
 
