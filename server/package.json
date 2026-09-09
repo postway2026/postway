@@ -1,7 +1,7 @@
 {
-  "name": "gm0064-server",
+  "name": "posway-server",
   "version": "1.0.0",
-  "description": "GM_0064 shaxsiy do'kon boshqaruv tizimi - server",
+  "description": "Posway shaxsiy do'kon boshqaruv tizimi - server",
   "main": "index.js",
   "type": "module",
   "scripts": {
