@@ -1,7 +1,7 @@
 const BASE = 'https://postway-rdy4.onrender.com/api';
 
 function getToken() {
-  return localStorage.getItem('gm0064_token');
+  return localStorage.getItem('posway_token');
 }
 
 async function request(path, options = {}) {
