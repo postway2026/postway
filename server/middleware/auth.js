@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 
-const SECRET = process.env.JWT_SECRET || 'gm0064-maxfiy-kalit-buni-ozgartiring';
+const SECRET = process.env.JWT_SECRET || 'posway-maxfiy-kalit-buni-ozgartiring';
 
 export function authRequired(req, res, next) {
   const header = req.headers.authorization;
