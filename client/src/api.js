@@ -1,4 +1,4 @@
-const BASE = 'https://postway-rdy4.onrender.com/api';
+const BASE = 'https://posway-api.onrender.com/api';;
 
 function getToken() {
   return localStorage.getItem('posway_token');
