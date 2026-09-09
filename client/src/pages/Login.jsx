@@ -28,7 +28,7 @@ export default function Login() {
     <div className="login-wrap">
       <form className="login-box" onSubmit={handleSubmit}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--accent)' }}>GM_0064</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--accent)' }}>Posway</div>
           <div style={{ color: 'var(--text-dim)', fontSize: 13 }}>Do'kon boshqaruv tizimi</div>
         </div>
         {error && (
