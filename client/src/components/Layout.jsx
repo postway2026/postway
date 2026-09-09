@@ -22,6 +22,9 @@ export default function Layout() {
   const toggleRef = useRef(null);
   const touchStartX = useRef(null);
 
+  // (15) Mobilda sidebar ochiq bo'lganda tashqariga bosilsa yopilishi.
+  // Toggle tugmasi alohida tekshiriladi — aks holda tugma bosilganda
+  // sidebar bir zumda ochilib, darhol yana yopilib qolardi.
   useEffect(() => {
     function handleOutside(e) {
       if (!open) return;
@@ -37,6 +40,7 @@ export default function Layout() {
     };
   }, [open]);
 
+  // (15) Sidebar ochiq bo'lganda chapga svayp qilinsa yopilishi.
   function handleTouchStart(e) {
     touchStartX.current = e.touches[0].clientX;
   }
