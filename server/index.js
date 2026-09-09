@@ -30,5 +30,5 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`✅ GM_0064 server ${PORT}-portda ishga tushdi`);
+  console.log(`✅ Posway server ${PORT}-portda ishga tushdi`);
 });
