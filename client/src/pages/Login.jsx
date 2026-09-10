@@ -31,6 +31,9 @@ export default function Login() {
           <img src="/icon-192.png" alt="Posway" />
           Posway
         </div>
+        <div className="login-panel__logo-strip">
+          <img src="/logo-wordmark.png" alt="Posway" />
+        </div>
         <div className="login-panel__tagline">
           <h2>Biznesingizni bir joydan boshqaring</h2>
           <p>Sotuvlar, mahsulotlar, mijozlar va hisobotlar — barchasi bitta tizimda.</p>
