@@ -25,8 +25,20 @@ export default function Login() {
   }
 
   return (
-    <div className="login-wrap">
-      <form className="login-box" onSubmit={handleSubmit}>
+    <div className="login-split">
+      <div className="login-panel">
+        <div className="login-panel__brand">
+          <img src="/icon-192.png" alt="Posway" />
+          Posway
+        </div>
+        <div className="login-panel__tagline">
+          <h2>Biznesingizni bir joydan boshqaring</h2>
+          <p>Sotuvlar, mahsulotlar, mijozlar va hisobotlar — barchasi bitta tizimda.</p>
+        </div>
+        <div />
+      </div>
+      <div className="login-form-side">
+        <form className="login-box" onSubmit={handleSubmit}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--accent)' }}>Posway</div>
           <div style={{ color: 'var(--text-dim)', fontSize: 13 }}>Do'kon boshqaruv tizimi</div>
@@ -50,7 +62,8 @@ export default function Login() {
         <div style={{ marginTop: 16, fontSize: 12, color: 'var(--text-dim)', textAlign: 'center' }}>
           Boshlang'ich: admin / admin123
         </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }
