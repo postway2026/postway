@@ -13,11 +13,11 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
       },
       manifest: {
-        name: "GM_0064 Do'kon Boshqaruvi",
-        short_name: 'GM_0064',
-        description: "GM_0064 avtoehtiyot qismlar do'koni uchun boshqaruv tizimi",
-        theme_color: '#0f172a',
-        background_color: '#0f172a',
+        name: 'Posway — Biznes boshqaruvi',
+        short_name: 'Posway',
+        description: "Posway do'kon va biznes boshqaruv tizimi",
+        theme_color: '#0033a0',
+        background_color: '#0033a0',
         display: 'standalone',
         start_url: '/',
         icons: [
